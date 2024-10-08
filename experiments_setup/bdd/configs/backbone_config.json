@@ -1,0 +1,11 @@
+{
+    "in_channels": 3,
+    "alpha": 1,
+    "patch_size": 2,
+    "dropout_p": 0.1,
+    "norm_num_groups": 4,
+    "bias": true, 
+    "initializer": "he_uniform",
+    "device": "cuda",
+    "dtype": null
+}
