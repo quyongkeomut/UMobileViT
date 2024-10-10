@@ -27,52 +27,6 @@ from model.transfomer import (
 )
 from model.module import _UMobileViTLayer
 
-def _get_clones(module, N):
-    # FIXME: copy.deepcopy() is not defined on nn.module
-    return ModuleList([deepcopy(module) for i in range(N)])
-
-
-def _get_expansion_block(
-    in_channels: int, 
-    expansion_factor: float,
-    norm_num_groups: int = 1,
-    bias: bool = True,
-    **factory_kwargs
-) -> Sequential:
-    expanded_channels: int = int(expansion_factor*in_channels)
-    block = Sequential(
-        Conv2d(
-            in_channels=in_channels,
-            out_channels=expanded_channels,
-            kernel_size=1,
-            bias=bias,
-            **factory_kwargs),
-        ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs),
-        Conv2d(
-            in_channels=expanded_channels,
-            out_channels=expanded_channels,
-            kernel_size=3,
-            padding="same",
-            groups=expanded_channels,
-            bias=bias,
-            **factory_kwargs),
-        ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs), 
-        Conv2d(
-            in_channels=expanded_channels,
-            out_channels=in_channels,
-            kernel_size=1,
-            bias=bias,
-            **factory_kwargs),
-    )
-    return block
 
 class UMobileViTEncoderLayer(_UMobileViTLayer):
     def __init__(self, **kwargs) -> None:
