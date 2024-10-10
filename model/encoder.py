@@ -25,7 +25,7 @@ from model.transfomer import (
     TransformerDecoderLayer,
     _get_initializer
 )
-from model.umobilevit import _UMobileViTLayer
+from model.module import _UMobileViTLayer
 
 def _get_clones(module, N):
     # FIXME: copy.deepcopy() is not defined on nn.module
