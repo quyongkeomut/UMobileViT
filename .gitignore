@@ -1,8 +1,7 @@
 data/
 env/
 docs/
-model/
-
+weights/
 *.txt
 *.png
 *.jpg
