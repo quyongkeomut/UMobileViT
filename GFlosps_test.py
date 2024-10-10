@@ -6,7 +6,7 @@ from fvcore import nn as fnn
 
 from torchinfo import summary
 
-from utils.module import UMobileViT, UMobileViTDecoder
+from model.umobilevit import UMobileViT, UMobileViTDecoder
 
 if __name__ == "__main__":
     model = UMobileViT(alpha=0.5, patch_size=(3, 2))
