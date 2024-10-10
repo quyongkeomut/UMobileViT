@@ -322,6 +322,6 @@ def separable_attention_forward(
     
     # compute attention values
     attn_values = torch.mul(context_vec, v) # (N, C, spatial, seq_len)
-    attn_values = relu(conv2d(attn_values, out_proj_weight, out_proj_bias)) # (N, Ci, spatial, seq_len)
+    attn_values = conv2d(attn_values, out_proj_weight, out_proj_bias) # (N, Ci, spatial, seq_len)
     
     return (attn_values, context_scores) if need_context_scores else (attn_values, )
