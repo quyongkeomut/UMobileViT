@@ -15,10 +15,15 @@ if __name__ == "__main__":
     input_shape = (1, *img_size)
     
     model_inputs = (input, )
+
+    output = model(input)
+    
+
     flops = fnn.FlopCountAnalysis(model, model_inputs)
-    print(fnn.flop_count_table(flops, max_depth=4))
+    print(fnn.flop_count_table(flops, max_depth=5))
     
-    
+    summary(model, input_data=model_inputs, depth=5)
+
     # --decoder---
     # alpha: float = 0.5
     # decoder = UMobileViTDecoder(alpha=alpha, patch_size=(3, 2))
