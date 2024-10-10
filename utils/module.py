@@ -11,7 +11,8 @@ from torch.nn import (
     ReLU,
     Conv2d,
     GroupNorm,
-    Upsample
+    Upsample,
+    Identity
 )
 import torch.nn.functional as F
 
@@ -77,7 +78,7 @@ def _get_expansion_block(
 class _UMobileViTLayer(Module):
     def __init__(
         self, 
-        transformer_block: TransformerEncoderLayer | TransformerDecoderLayer,
+        transformer_block: TransformerEncoderLayer | TransformerDecoderLayer | None,
         in_channels: int, 
         expansion_factor: float,
         patch_size: int | Tuple[int, int],
@@ -137,8 +138,11 @@ class _UMobileViTLayer(Module):
             "bias": bias,
             "initializer": initializer
         }
-        transformer_block = transformer_block(**tranformer_block_kwargs, **factory_kwargs)
-        self.global_block = _get_clones(transformer_block, num_transformer_block)
+        if transformer_block is not None:
+            transformer_block = transformer_block(**tranformer_block_kwargs, **factory_kwargs)
+            self.global_block = _get_clones(transformer_block, num_transformer_block)
+        else:
+            self.global_block = ModuleList([])
         
         # local block is depthwise separable convolution, followed by a group norm layer
         self.local_block = Sequential(
@@ -146,11 +150,16 @@ class _UMobileViTLayer(Module):
                 in_channels=in_channels,
                 out_channels=in_channels,
                 kernel_size=3,
-                bias=bias,
                 padding="same",
+                bias=bias,
                 groups=in_channels,
                 **factory_kwargs),
             ReLU(),
+            GroupNorm(
+                num_groups=norm_num_groups,
+                num_channels=in_channels,
+                **factory_kwargs
+            ),
             Conv2d(
                 in_channels=in_channels,
                 out_channels=in_channels,
@@ -171,7 +180,7 @@ class _UMobileViTLayer(Module):
             expansion_factor,
             norm_num_groups,
             bias,
-            **factory_kwargs)
+            **factory_kwargs) if transformer_block is not None else Identity()
         
         # out normalization
         self.out_norm = GroupNorm(num_groups=norm_num_groups,
@@ -188,26 +197,16 @@ class _UMobileViTLayer(Module):
                 if layer.bias is not None:
                     zeros_(layer.bias)
         
-        for layer in self.expansion_block:
-            if isinstance(layer, Conv2d):
-                self.initializer(layer.weight)
-                if layer.bias is not None:
-                    zeros_(layer.bias)
+        if not isinstance(self.expansion_block, Identity):
+            for layer in self.expansion_block:
+                if isinstance(layer, Conv2d):
+                    self.initializer(layer.weight)
+                    if layer.bias is not None:
+                        zeros_(layer.bias)
 
 
 class UMobileViTEncoderLayer(_UMobileViTLayer):
-    def __init__(self, 
-        in_channels: int, 
-        expansion_factor: float,
-        patch_size: int | Tuple[int, int],
-        dropout_p: float = 0.1,
-        norm_num_groups: int = 1,
-        bias: bool = True,
-        num_transformer_block: int = 1,
-        initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
-        device=None,
-        dtype=None
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         r"""
         
         Encoder layer of UMobileViT is made up of Transformer encoder blocks,
@@ -215,19 +214,7 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         
         """
         transformer_block = TransformerEncoderLayer
-        super().__init__(
-            transformer_block,
-            in_channels,
-            expansion_factor,
-            patch_size,
-            dropout_p,
-            norm_num_groups,
-            bias,
-            num_transformer_block,
-            initializer,
-            device,
-            dtype
-        )
+        super().__init__(transformer_block, **kwargs)
     
     
     def forward(self, input: Tensor) -> Tensor:
@@ -275,18 +262,7 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
 
 
 class UMobileViTDecoderLayer(_UMobileViTLayer):
-    def __init__(self, 
-        in_channels: int, 
-        expansion_factor: float,
-        patch_size: int | Tuple[int, int],
-        dropout_p: float = 0.1,
-        norm_num_groups: int = 1,
-        bias: bool = True,
-        num_transformer_block: int = 1,
-        initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
-        device=None,
-        dtype=None
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         r"""
         
         Decoder layer of UMobileViT is made up of Transformer decoder blocks,
@@ -294,19 +270,7 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         
         """
         transformer_block = TransformerDecoderLayer
-        super().__init__(
-            transformer_block,
-            in_channels,
-            expansion_factor,
-            patch_size,
-            dropout_p,
-            norm_num_groups,
-            bias,
-            num_transformer_block,
-            initializer,
-            device,
-            dtype
-        )
+        super().__init__(transformer_block, **kwargs)
         
         
     def forward(
@@ -314,7 +278,8 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         input: Tensor,
         memory: Tensor
     ) -> Tensor:
-        """Forward method of UMobileViT decoder layer
+        r"""
+        Forward method of UMobileViT decoder layer
 
         Args:
             input (Tensor): input of decoder. Must be 4D Tensor.
@@ -370,6 +335,108 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         # return normalized residual connection
         return self.out_norm(Z + input)
           
+
+class DecoderOutLayer(_UMobileViTLayer):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(transformer_block=None, **kwargs)
+        
+        r"""
+        
+        Implement the custom global block. Instead of performing self-attention and 
+        cross-attention, this global block will project the concatenated feature map
+        to the model space.
+        
+        """
+        
+        self.global_block = ModuleList([
+            Conv2d(
+                in_channels=2*kwargs["in_channels"],
+                out_channels=kwargs["in_channels"],
+                kernel_size=1,
+                bias=kwargs["bias"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]),
+            ReLU(),
+            GroupNorm(
+                num_groups=kwargs["norm_num_groups"],
+                num_channels=kwargs["in_channels"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]),
+            Conv2d(
+                in_channels=kwargs["in_channels"],
+                out_channels=kwargs["in_channels"],
+                kernel_size=3,
+                padding="same",
+                groups=kwargs["in_channels"],
+                bias=kwargs["bias"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]),
+            ReLU(),
+            GroupNorm(
+                num_groups=kwargs["norm_num_groups"],
+                num_channels=kwargs["in_channels"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"])
+        ])
+        
+    
+    def _reset_parameters(self) -> None:
+        super()._reset_parameters()
+        for layer in self.global_block:
+            if isinstance(layer, Conv2d):
+                self.initializer(layer.weight)
+                if layer.bias is not None:
+                    zeros_(layer.bias)
+    
+    
+    def forward(
+        self, 
+        input: Tensor, 
+        memory: Tensor) -> Tensor:
+        r"""
+        Forward method of UMobileViT out decoder layer
+
+        Args:
+            input (Tensor): input of decoder. Must be 4D Tensor.
+            memory (Tensor): output of encoder layer at a specific stage. Must share the
+                same spatial and sequence dimentions with input.
+
+        Returns:
+            Tensor: output of decoder.
+            
+        Shape
+            Inputs:
+                input: :math:`(N, C, H, W)`
+                memory: :math:`(N, C, H, W)`
+
+            Output: :math:`(N, C, H, W)`
+        """
+        # check intergrity: features sizes must be divisible by patch sizes respectively
+        assert (
+            input.dim() == 4
+        ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+        assert (
+            memory.dim() == 4
+        ), f"Encoder block expected memory have 4 dimentions, got {memory.dim()}."
+        assert (
+            input.size(1) == memory.size(1)
+        ), f"Encoder block expected input and memory have the same channels, got {input.size(1)} and {memory.size(1)}"
+        
+        # local block forward
+        Z = self.local_block(input) # (N, C, H, W)
+        
+        # global block forward
+        Z = torch.cat([Z, memory], dim=1)
+        Z = self.global_block[0](Z)
+        for layer in self.global_block[1:]:
+            Z = layer(Z)
+        
+        # expansion block forward
+        Z = self.expansion_block(Z)
+        
+        # return normalized residual connection
+        return self.out_norm(Z + input)
+
 
 class UMobileViTEncoder(Module):
     def __init__(
@@ -594,27 +661,7 @@ class UMobileViTDecoder(Module):
         # out block - upsample factor = 8
         out_block = ModuleList([
             Upsample(**upsampling_kwargs),
-            Conv2d(in_channels=2*d_model,
-                   out_channels=d_model,
-                   kernel_size=1,
-                   stride=1,
-                   bias=bias,
-                   **factory_kwargs),
-            ReLU(),
-            GroupNorm(num_channels=d_model, 
-                      num_groups=norm_num_groups, 
-                      **factory_kwargs),
-            Conv2d(in_channels=d_model,
-                   out_channels=d_model,
-                   kernel_size=3,
-                   stride=1,
-                   groups=d_model,
-                   bias=bias,
-                   **factory_kwargs),
-            ReLU(),
-            GroupNorm(num_channels=d_model, 
-                      num_groups=norm_num_groups, 
-                      **factory_kwargs)
+            DecoderOutLayer(**decoder_layer_kwargs, **factory_kwargs)
         ])
         
         self.layers = ModuleList([
@@ -622,16 +669,6 @@ class UMobileViTDecoder(Module):
             stage_2,
             out_block,
         ])
-        
-        self._reset_parameters()
-                        
-                        
-    def _reset_parameters(self) -> None:
-        for layer in self.layers[-1]:
-            if isinstance(layer, Conv2d):
-                self.initializer(layer.weight)
-                if layer.bias is not None:
-                    zeros_(layer.bias)
     
     
     def forward(self, inputs: Tuple[Tensor]) -> Tensor:
@@ -650,16 +687,10 @@ class UMobileViTDecoder(Module):
             raise ValueError(f"number of inputs is expected to be equal to {len(self.layers) + 1}, got {len(inputs)}")
         
         Z = inputs[0]
-        for i, memory in enumerate(inputs[1:-1]): 
+        for i, memory in enumerate(inputs[1:]): 
             Z = self.layers[i][0](Z) # upsample
             for l in self.layers[i][1:]: # cross attention
                 Z = l(Z, memory)
-        
-        # for the last input, concat instead of performing cross attention
-        Z = self.layers[-1][0](Z)
-        Z = torch.cat([Z, inputs[-1]], dim=1)
-        for l in self.layers[-1][1:]:
-            Z = l(Z)
         
         return Z
         
