@@ -100,7 +100,7 @@ class TverskyLoss(nn.Module):
 
         # Compute Tversky index
         tversky_index = (true_pos + self.smooth) / (
-            true_pos + self.alpha * false_pos + self.beta * false_neg + self.smooth
+            true_pos + self.alpha * false_pos + self.beta * false_neg + self.smooth + 1e-5
         )
 
         # Return Tversky loss
