@@ -1,5 +1,4 @@
 from typing import Tuple, Callable
-from math import prod
 from copy import deepcopy
 
 import torch
@@ -12,7 +11,6 @@ from torch.nn import (
     Conv2d,
     GroupNorm,
     Upsample,
-    Identity
 )
 import torch.nn.functional as F
 
@@ -21,7 +19,6 @@ from torch.nn.modules.utils import _pair
 from torch.nn.init import zeros_
 
 from model.transfomer import (
-    TransformerEncoderLayer, 
     TransformerDecoderLayer,
     _get_initializer
 )
@@ -260,7 +257,7 @@ class DecoderOutLayer(_UMobileViTLayer):
 class UMobileViTDecoder(Module):
     def __init__(
         self,  
-        d_model: int = 92,
+        d_model: int = 96,
         expansion_factor: float = 3,
         patch_size: int | Tuple[int, int] = 2,
         dropout_p: float = 0.1,

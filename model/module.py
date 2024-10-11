@@ -11,10 +11,8 @@ from torch.nn import (
     ReLU,
     Conv2d,
     GroupNorm,
-    Upsample,
     Identity
 )
-import torch.nn.functional as F
 
 from torch.nn.modules.utils import _pair
 

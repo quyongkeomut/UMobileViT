@@ -1,6 +1,4 @@
 from typing import Tuple, Callable
-from math import prod
-from copy import deepcopy
 
 import torch
 from torch import Tensor
@@ -11,18 +9,13 @@ from torch.nn import (
     ReLU,
     Conv2d,
     GroupNorm,
-    Upsample,
-    Identity
 )
 import torch.nn.functional as F
-
-from torch.nn.modules.utils import _pair
 
 from torch.nn.init import zeros_
 
 from model.transfomer import (
     TransformerEncoderLayer, 
-    TransformerDecoderLayer,
     _get_initializer
 )
 from model.module import _UMobileViTLayer
@@ -84,13 +77,40 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         return self.out_norm(Z + input)
 
 
+def _get_downsample_block(initializer, **kwargs) -> Sequential:
+    block = Sequential(
+        Conv2d(
+            in_channels=kwargs["in_channels"],
+            out_channels=kwargs["out_channels"],
+            kernel_size=kwargs["kernel_size"],
+            stride=kwargs["stride"],
+            padding=kwargs["padding"],
+            groups=kwargs["groups"],
+            bias=kwargs["bias"],
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        ),
+        ReLU(),
+        GroupNorm(
+            num_groups=kwargs["norm_num_groups"],
+            num_channels=kwargs["out_channels"],
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        ),
+    )
+    
+    initializer(block[0].weight)
+    if block[0].bias is not None:
+        zeros_(block[0].bias)
+        
+    return block
 
 
 class UMobileViTEncoder(Module):
     def __init__(
         self, 
         in_channels: int = 3,
-        d_model: int = 92,
+        d_model: int = 96,
         expansion_factor: float = 4,
         patch_size: int | Tuple[int, int] = 2,
         dropout_p: float = 0.1,
@@ -143,60 +163,82 @@ class UMobileViTEncoder(Module):
             "out_channels": d_model,
             "kernel_size": 3,
             "stride": 2,
-            "padding": 1,
+            "padding": (1, 1),
             "groups": d_model,
+            "norm_num_groups": norm_num_groups,
             "bias": bias,
         }
         self.initializer = _get_initializer(initializer)
         
-        # stem block - output stride = 5
+        # stem block - output stride = 8
         stem_block = Sequential(
-            Conv2d(in_channels=in_channels,
-                   out_channels=32,
-                   kernel_size=3,
-                   stride=1,
-                   padding="same",
-                   bias=bias,
-                   **factory_kwargs),
+            Conv2d(
+                in_channels=in_channels,
+                out_channels=16,
+                kernel_size=3,
+                stride=2,
+                padding=(1, 1),
+                bias=bias,
+                **factory_kwargs
+            ),
             ReLU(),
-            Conv2d(in_channels=32,
-                   out_channels=d_model,
-                   kernel_size=3,
-                   stride=1,
-                   padding="same",
-                   bias=bias,
-                   **factory_kwargs),
+            Conv2d(
+                in_channels=16,
+                out_channels=32,
+                kernel_size=3,
+                stride=2,
+                padding=(1, 1),
+                bias=bias,
+                **factory_kwargs
+            ),
             ReLU(),
-            Conv2d(in_channels=d_model,
-                   out_channels=d_model,
-                   kernel_size=5,
-                   stride=5,
-                   padding=(2, 2),
-                   groups=d_model,
-                   bias=bias,
-                   **factory_kwargs),
+            Conv2d(
+                in_channels=32,
+                out_channels=d_model,
+                kernel_size=3,
+                stride=2,
+                padding=(1, 1),
+                bias=bias,
+                **factory_kwargs
+            ),
             ReLU(),
-            GroupNorm(num_channels=d_model, 
-                      num_groups=norm_num_groups,
-                      **factory_kwargs)
+            GroupNorm(
+                num_channels=d_model, 
+                num_groups=norm_num_groups,
+                **factory_kwargs
+            )
         )
         
-        # first stage block - output stride = 2
+        # first stage block - output stride = 16
         stage_1 = Sequential(
-            Conv2d(**downsampling_block_kwargs, **factory_kwargs),
+            _get_downsample_block(
+                self.initializer, 
+                **downsampling_block_kwargs, 
+                **factory_kwargs
+            ),
             UMobileViTEncoderLayer(**encoder_layer_kwargs,**factory_kwargs),
         )
         
-        # second stage block - output stride = 4
+        # second stage block - output stride = 32
         stage_2 = Sequential(
-            Conv2d(**downsampling_block_kwargs, **factory_kwargs),
+            _get_downsample_block(
+                self.initializer, 
+                **downsampling_block_kwargs, 
+                **factory_kwargs
+            ),
             UMobileViTEncoderLayer(**encoder_layer_kwargs,**factory_kwargs),
             UMobileViTEncoderLayer(**encoder_layer_kwargs, **factory_kwargs),
         )
         
-        # third stage block - output stride = 8
+        # third stage block - output stride = 64
+        # at this stage, patch size would be 1
+        encoder_layer_kwargs["patch_size"] = (1, 1)
         stage_3 = Sequential(
-            Conv2d(**downsampling_block_kwargs, **factory_kwargs),
+            _get_downsample_block(
+                self.initializer, 
+                **downsampling_block_kwargs, 
+                **factory_kwargs
+            ),
             UMobileViTEncoderLayer(**encoder_layer_kwargs, **factory_kwargs),
             UMobileViTEncoderLayer(**encoder_layer_kwargs, **factory_kwargs),
             UMobileViTEncoderLayer(**encoder_layer_kwargs, **factory_kwargs),

@@ -6,235 +6,233 @@ import torch
 from torch import Tensor
 from torch.nn import (
     Module,
-    ModuleList,
     Sequential,
     ReLU,
     Conv2d,
     GroupNorm,
     Upsample,
-    Identity,
-    ConvTranspose2d
 )
-import torch.nn.functional as F
-
-from torch.nn.modules.utils import _pair
 
 from torch.nn.init import zeros_
 
-from torchvision.transforms import Resize
+from model.module import _get_initializer
 
-
+def _get_upsample_block(
+    in_channels: int,
+    bias: bool,
+    norm_num_groups: int,
+    initializer: Callable,
+    **kwargs,
+) -> Sequential:
+    # depthwise conv, followed by non-linearity and group norm
+    block = Sequential(
+        Upsample(
+            scale_factor=kwargs["scale_factor"], 
+            mode=kwargs["mode"]
+        ),
+        Conv2d(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=3,
+            stride=1,
+            padding="same",
+            groups=in_channels,
+            bias=bias,
+            
+        ),
+        ReLU(),
+        GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        ),
+    )
+    
+    initializer(block[1].weight)
+    if block[1].bias is not None:
+        zeros_(block[1].bias)
+    
+    return block
+    
 
 class SegmentationHead(Module):
     def __init__(self, 
-        in_channels: int = 3,
+        d_model: int = 96,
+        alpha: float = 1,
         out_channels: int = 3,
-        input_size: int | Tuple[int, int] = (360, 640),
-        d_model: int = 92,
-        expansion_factor: float = 4,
-        patch_size: int | Tuple[int, int] = 2,
-        dropout_p: float = 0.1,
         norm_num_groups: int = 4,
         bias: bool = True, 
         initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
-        num_transformer_block: int = 2,
         device=None,
         dtype=None,
         **kwargs
+    ) -> None:
         
-        ) -> None:
         super().__init__()
-
-        upsampling_kwargs = {
-            "scale_factor": 2,
-            "mode": "nearest"
-        }
-
-
+        
+        upsampling_kwargs = {"scale_factor": 2, "mode": "nearest"}
+        factory_kwargs = {"device": device, "dtype": dtype}
+        initializer = _get_initializer(initializer)
+        self.initializer = initializer
+        in_channels: int = int(alpha*d_model)
+        new_space_dim = in_channels
+        
         self.lane_head = Sequential(
-            # x2
-            Upsample(**upsampling_kwargs),
+            # project to new space
             Conv2d(
                 in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                groups=in_channels,
-                bias=bias,
-                padding="same",
-                device=device,
-                dtype=dtype),
-            ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=in_channels,
-            device=device,
-            dtype=dtype),
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=in_channels//2,
+                out_channels=new_space_dim,
                 kernel_size=1,
                 bias=bias,
-                device=device,
-                dtype=dtype),
+                **factory_kwargs
+            ),
             ReLU(),
             GroupNorm(
-            num_groups=norm_num_groups//2,
-            num_channels=in_channels//2,
-            device=device,
-            dtype=dtype),
-
+                num_groups=norm_num_groups,
+                num_channels=new_space_dim,
+                **factory_kwargs
+            ),
+            
+            # x2 
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
             # x2
-            Upsample(**upsampling_kwargs),
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
+            # x2
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
+            # output conv
             Conv2d(
-                in_channels=in_channels//2,
-                out_channels=in_channels//2,
-                groups=in_channels//2,
+                in_channels=new_space_dim,
+                out_channels=new_space_dim,
                 kernel_size=3,
+                stride=1,
                 padding="same",
+                groups=new_space_dim,
                 bias=bias,
-                device=device,
-                dtype=dtype),
+            ),
             ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups//2,
-            num_channels=in_channels//2,
-            device=device,
-            dtype=dtype),
             Conv2d(
-                in_channels=in_channels//2,
-                out_channels=in_channels//4,
-                kernel_size=1,
-                bias=bias,
-                device=device,
-                dtype=dtype),
-            ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups//4,
-            num_channels=in_channels//4,
-            device=device,
-            dtype=dtype),
-            # x2
-            Upsample(**upsampling_kwargs),
-            # Conv2d(
-            #     in_channels=in_channels//4,
-            #     out_channels=in_channels//4,
-            #     groups=in_channels//4,
-            #     kernel_size=3,
-            #     padding="same",
-            #     bias=bias,
-            #     device=device,
-            #     dtype=dtype),
-            # ReLU(),
-            # GroupNorm(
-            # num_groups=norm_num_groups//4,
-            # num_channels=in_channels//4,
-            # device=device,
-            # dtype=dtype),
-            Conv2d(
-                in_channels=in_channels//4,
+                in_channels=new_space_dim,
                 out_channels=out_channels,
                 kernel_size=1,
                 bias=bias,
-                device=device,
-                dtype=dtype),
-            ReLU(),
+                **factory_kwargs
+            ),   
+            
         )
 
         self.drivable_head = Sequential(
-          # x2
-            Upsample(**upsampling_kwargs),
+            # project to lower space
             Conv2d(
                 in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                groups=in_channels,
-                bias=bias,
-                padding="same",
-                device=device,
-                dtype=dtype),
-            ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=in_channels,
-            device=device,
-            dtype=dtype),
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=in_channels//2,
+                out_channels=new_space_dim,
                 kernel_size=1,
                 bias=bias,
-                device=device,
-                dtype=dtype),
+                **factory_kwargs
+            ),
             ReLU(),
             GroupNorm(
-            num_groups=norm_num_groups//2,
-            num_channels=in_channels//2,
-            device=device,
-            dtype=dtype),
-
+                num_groups=norm_num_groups,
+                num_channels=new_space_dim,
+                **factory_kwargs
+            ),
+            
+            # x2 
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
             # x2
-            Upsample(**upsampling_kwargs),
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
+            # x2
+            _get_upsample_block(
+                in_channels=new_space_dim,
+                bias=bias,
+                norm_num_groups=norm_num_groups,
+                initializer=initializer,
+                **upsampling_kwargs, 
+                **factory_kwargs
+            ),
+            
+            # output conv
             Conv2d(
-                in_channels=in_channels//2,
-                out_channels=in_channels//2,
-                groups=in_channels//2,
+                in_channels=new_space_dim,
+                out_channels=new_space_dim,
                 kernel_size=3,
+                stride=1,
                 padding="same",
+                groups=new_space_dim,
                 bias=bias,
-                device=device,
-                dtype=dtype),
+            ),
             ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups//2,
-            num_channels=in_channels//2,
-            device=device,
-            dtype=dtype),
             Conv2d(
-                in_channels=in_channels//2,
-                out_channels=in_channels//4,
-                kernel_size=1,
-                bias=bias,
-                device=device,
-                dtype=dtype),
-            ReLU(),
-            GroupNorm(
-            num_groups=norm_num_groups//4,
-            num_channels=in_channels//4,
-            device=device,
-            dtype=dtype),
-            # x2
-            Upsample(**upsampling_kwargs),
-            # Conv2d(
-            #     in_channels=in_channels//4,
-            #     out_channels=in_channels//4,
-            #     groups=in_channels//4,
-            #     kernel_size=3,
-            #     padding="same",
-            #     bias=bias,
-            #     device=device,
-            #     dtype=dtype),
-            # ReLU(),
-            # GroupNorm(
-            # num_groups=norm_num_groups//4,
-            # num_channels=in_channels//4,
-            # device=device,
-            # dtype=dtype),
-            Conv2d(
-                in_channels=in_channels//4,
+                in_channels=new_space_dim,
                 out_channels=out_channels,
                 kernel_size=1,
                 bias=bias,
-                device=device,
-                dtype=dtype),
-            ReLU(),
+                **factory_kwargs
+            ), 
         )
 
-    def forward(self, inputs):
+        self._reset_parameters()
+    
+    
+    def _reset_parameters(self,) -> None:
+        for layer in self.lane_head:
+            if isinstance(layer, Conv2d):
+                self.initializer(layer.weight)
+                if layer.bias is not None:
+                    zeros_(layer.bias)
 
+        for layer in self.drivable_head:
+            if isinstance(layer, Conv2d):
+                self.initializer(layer.weight)
+                if layer.bias is not None:
+                    zeros_(layer.bias)
+                
+
+    def forward(self, inputs: Tensor) -> Tuple[Tensor]:
         line_mask = self.lane_head.forward(inputs)
         drivable_mask = self.drivable_head.forward(inputs)
-
         return (drivable_mask, line_mask)
+
 
 if __name__ == "__main__":
     
@@ -246,7 +244,7 @@ if __name__ == "__main__":
         out_channels= 2
     )
 
-    input = torch.randn(1, 48, 40, 80)
+    input = torch.randn(1, 48, 72, 128)
 
     model_inputs = (input, )
     flops = fnn.FlopCountAnalysis(model, model_inputs)

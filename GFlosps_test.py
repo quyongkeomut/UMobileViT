@@ -6,7 +6,8 @@ from fvcore import nn as fnn
 
 from torchinfo import summary
 
-from model.umobilevit import UMobileViT, UMobileViTDecoder
+from model.umobilevit import UMobileViT
+from model.seg_head import SegmentationHead
 
 if __name__ == "__main__":
     model = UMobileViT(alpha=0.5, patch_size=(2, 2))
@@ -20,16 +21,20 @@ if __name__ == "__main__":
     
 
     flops = fnn.FlopCountAnalysis(model, model_inputs)
-    print(fnn.flop_count_table(flops, max_depth=5))
+    print(fnn.flop_count_table(flops, max_depth=3))
     
-    summary(model, input_data=model_inputs, depth=5)
+    # summary(model, input_data=model_inputs, depth=5)
 
-    # --decoder---
-    # alpha: float = 0.5
-    # decoder = UMobileViTDecoder(alpha=alpha, patch_size=(3, 2))
-    # decoder_inputs = ((torch.randn(size=(1, int(alpha*512), 45, 80)), 
-    #                    torch.randn(size=(1, int(alpha*256), 90, 160)), 
-    #                    torch.randn(size=(1, int(alpha*128), 180, 320))), 
-    #                   )
-    # flops = fnn.FlopCountAnalysis(decoder, decoder_inputs)
-    # print(fnn.flop_count_table(flops, max_depth=4))
+    
+    # --segmentation head---
+    # model = SegmentationHead(
+    #     in_channels= 48,
+    #     out_channels= 2
+    # )
+# 
+    # input = torch.randn(1, 48, 72, 128)
+# 
+    # model_inputs = (input, )
+    # flops = fnn.FlopCountAnalysis(model, model_inputs)
+    # print(fnn.flop_count_table(flops, max_depth=5))
+    # summary(model, input_data=input, depth=5)
