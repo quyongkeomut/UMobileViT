@@ -90,10 +90,10 @@ class BDD100KDataset(torch.utils.data.Dataset):
         self.Tensor = transforms.ToTensor()
         self.valid=valid
         if valid:
-            self.root='/home/ceec/huycq/data/bdd100k/images/val'
+            self.root='./data/bdd100k/images/val'
             self.names=os.listdir(self.root)
         else:
-            self.root='/home/ceec/huycq/data/bdd100k/images/train'
+            self.root='./data/bdd100k/images/train'
             self.names=os.listdir(self.root)
 
     def __len__(self):
@@ -106,12 +106,21 @@ class BDD100KDataset(torch.utils.data.Dataset):
         :return: returns the image and corresponding label file.
         '''
         W_=640
-        H_=360
-        image_name=os.path.join(self.root,self.names[idx])
+        H_=320
+        image_name=self.names[idx]
+        image_path = os.path.join(self.root, image_name)
+        image = cv2.imread(image_path)
+
+        drivable_path = os.path.join(self.root.replace("images", "labels/drivable/masks"), image_name.replace("jpg", "png"))
+        lane_path = os.path.join(self.root.replace("images", "labels/lane/masks"), image_name.replace("jpg", "png"))
         
-        image = cv2.imread(image_name)
-        label1 = cv2.imread(image_name.replace("images","segments").replace("jpg","png"), 0)
-        label2 = cv2.imread(image_name.replace("images","lane").replace("jpg","png"), 0)
+        label1 = cv2.imread(drivable_path, 0)
+        label2 = cv2.imread(lane_path, 0)
+
+        kernel = np.ones((8, 8), np.uint8)
+
+        label2 = cv2.dilate(label2, kernel, iterations=1)
+
         if not self.valid:
             if random.random()<0.5:
                 combination = (image, label1, label2)
@@ -149,4 +158,21 @@ class BDD100KDataset(torch.utils.data.Dataset):
 
 
        
-        return image_name,torch.from_numpy(image),(seg_da,seg_ll)
+        return (image_name, torch.from_numpy(image), (seg_da,seg_ll))
+
+if __name__ == "__main__":
+    from torch.utils.data import DataLoader
+    bdd100kdataset = BDD100KDataset(valid=True)
+
+    train_loader = DataLoader(bdd100kdataset, 1, shuffle=True, drop_last=True)
+
+    for i, data in enumerate(train_loader):
+        image_name = data[0]
+        image = data[1]
+        d_mask, l_mask = data[2]
+
+        print(image.shape)
+        print(d_mask.shape)
+        print(l_mask.shape)
+        break
+
