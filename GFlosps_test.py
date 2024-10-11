@@ -9,8 +9,8 @@ from torchinfo import summary
 from model.umobilevit import UMobileViT, UMobileViTDecoder
 
 if __name__ == "__main__":
-    model = UMobileViT(alpha=0.5, patch_size=(3, 2))
-    img_size = (3, 360, 640)
+    model = UMobileViT(alpha=0.5, patch_size=(2, 2))
+    img_size = (3, 320, 640)
     input = torch.randn(size=(1, *img_size))
     input_shape = (1, *img_size)
     
