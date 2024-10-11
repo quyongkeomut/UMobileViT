@@ -7,6 +7,22 @@ from trainer import Trainer
 from experiments_setup.bdd.dataset import bdd100k_config
 from optimizer.optimizer import OPTIMIZERS
 from model.umobilevit import UMobileViT
+import numpy as np
+import random
+
+def set_seed(seed):
+    # Đặt seed cho PyTorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # Nếu sử dụng GPU
+
+    # Đặt seed cho NumPy
+    np.random.seed(seed)
+
+    # Đặt seed cho Random
+    random.seed(seed)
+
+# Ví dụ sử dụng
+set_seed(42)
 
 if __name__ == "__main__":
 
