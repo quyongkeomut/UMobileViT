@@ -1,3 +1,4 @@
 torch
 fvcore
 torchinfo
+opencv-python
