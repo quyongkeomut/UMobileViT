@@ -48,8 +48,25 @@ class SegmentationHead(Module):
             "scale_factor": 2,
             "mode": "nearest"
         }
+
+
         self.lane_head = Sequential(
+            # x2
             Upsample(**upsampling_kwargs),
+            Conv2d(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                kernel_size=3,
+                groups=in_channels,
+                bias=bias,
+                device=device,
+                dtype=dtype),
+            ReLU(),
+            GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            device=device,
+            dtype=dtype),
             Conv2d(
                 in_channels=in_channels,
                 out_channels=in_channels//2,
@@ -59,11 +76,26 @@ class SegmentationHead(Module):
                 dtype=dtype),
             ReLU(),
             GroupNorm(
-                num_groups=norm_num_groups,
-                num_channels=in_channels//2,
-                device=device,
-                dtype=dtype),
+            num_groups=norm_num_groups//2,
+            num_channels=in_channels//2,
+            device=device,
+            dtype=dtype),
+            # x2
             Upsample(**upsampling_kwargs),
+            # Conv2d(
+            #     in_channels=in_channels//2,
+            #     out_channels=in_channels//2,
+            #     groups=in_channels//2,
+            #     kernel_size=3,
+            #     bias=bias,
+            #     device=device,
+            #     dtype=dtype),
+            # ReLU(),
+            # GroupNorm(
+            # num_groups=norm_num_groups//2,
+            # num_channels=in_channels//2,
+            # device=device,
+            # dtype=dtype),
             Conv2d(
                 in_channels=in_channels//2,
                 out_channels=out_channels,
@@ -72,16 +104,24 @@ class SegmentationHead(Module):
                 device=device,
                 dtype=dtype),
             ReLU(),
-            GroupNorm(
-                num_groups=out_channels,
-                num_channels=out_channels,
-                device=device,
-                dtype=dtype),
-
         )
 
         self.drivable_head = Sequential(
-            Upsample(**upsampling_kwargs),
+          Upsample(**upsampling_kwargs),
+            Conv2d(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                kernel_size=3,
+                groups=in_channels,
+                bias=bias,
+                device=device,
+                dtype=dtype),
+            ReLU(),
+            GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            device=device,
+            dtype=dtype),
             Conv2d(
                 in_channels=in_channels,
                 out_channels=in_channels//2,
@@ -91,11 +131,25 @@ class SegmentationHead(Module):
                 dtype=dtype),
             ReLU(),
             GroupNorm(
-                num_groups=norm_num_groups//2,
-                num_channels=in_channels//2,
-                device=device,
-                dtype=dtype),
+            num_groups=norm_num_groups//2,
+            num_channels=in_channels//2,
+            device=device,
+            dtype=dtype),
             Upsample(**upsampling_kwargs),
+            # Conv2d(
+            #     in_channels=in_channels//2,
+            #     out_channels=in_channels//2,
+            #     groups=in_channels//2,
+            #     kernel_size=3,
+            #     bias=bias,
+            #     device=device,
+            #     dtype=dtype),
+            # ReLU(),
+            # GroupNorm(
+            # num_groups=norm_num_groups//2,
+            # num_channels=in_channels//2,
+            # device=device,
+            # dtype=dtype),
             Conv2d(
                 in_channels=in_channels//2,
                 out_channels=out_channels,
@@ -104,11 +158,6 @@ class SegmentationHead(Module):
                 device=device,
                 dtype=dtype),
             ReLU(),
-            GroupNorm(
-                num_groups=out_channels,
-                num_channels=out_channels,
-                device=device,
-                dtype=dtype),
         )
 
         self.resize = Resize(input_size)
@@ -130,7 +179,7 @@ if __name__ == "__main__":
 
     model = SegmentationHead(
         in_channels= 48,
-        out_channels= 3
+        out_channels= 2
     )
 
     input = torch.randn(1, 48, 72, 128)
