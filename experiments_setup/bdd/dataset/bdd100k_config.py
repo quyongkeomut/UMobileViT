@@ -1,0 +1,10 @@
+alpha: float =  0.5
+out_channel: int = 2
+patch_size = (2,2)
+num_epochs: int = 100
+batch_size: int = 4
+optimizer: str = "sgd"
+lr: float = 5e-4
+momentum: float = 0.9
+nesterov: bool = False
+device = "cuda"
