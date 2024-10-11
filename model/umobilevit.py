@@ -37,7 +37,6 @@ class UMobileViT(Module):
         self,
         in_channels: int = 3,
         out_channels: int = 3,
-        input_size: int | Tuple[int, int] = (360, 640),
         d_model: int = 96,
         expansion_factor: float = 5,
         alpha: float = 1,
@@ -88,6 +87,7 @@ class UMobileViT(Module):
         self.encoder = UMobileViTEncoder(in_channels=in_channels, **kwargs)
         self.decoder = UMobileViTDecoder(**kwargs)
         self.seg_head = SegmentationHead(
+            out_channels=out_channels,
             **kwargs 
         )
     
