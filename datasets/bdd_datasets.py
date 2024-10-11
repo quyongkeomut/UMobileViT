@@ -1,3 +1,4 @@
+#adapted from https://github.com/chequanghuy/TwinLiteNet/blob/main/DataSet.py
 import torch
 import cv2
 import torch.utils.data
@@ -20,6 +21,7 @@ def augment_hsv(img, hgain=0.015, sgain=0.7, vgain=0.4):
 
     img_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val))).astype(dtype)
     cv2.cvtColor(img_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
+
 def random_perspective(combination,  degrees=10, translate=.1, scale=.1, shear=10, perspective=0.0, border=(0, 0)):
     """combination of img transform"""
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-10, 10))
@@ -72,6 +74,7 @@ def random_perspective(combination,  degrees=10, translate=.1, scale=.1, shear=1
 
     combination = (img, gray, line)
     return combination
+
 class BDD100KDataset(torch.utils.data.Dataset):
     '''
     Class to load the dataset
