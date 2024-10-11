@@ -18,8 +18,7 @@ if __name__ == "__main__":
     model_inputs = (input, )
 
     output = model(input)
-    
-
+    print(output[0].shape, output[1].shape)
     flops = fnn.FlopCountAnalysis(model, model_inputs)
     print(fnn.flop_count_table(flops, max_depth=3))
     
