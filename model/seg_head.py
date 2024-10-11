@@ -12,7 +12,8 @@ from torch.nn import (
     Conv2d,
     GroupNorm,
     Upsample,
-    Identity
+    Identity,
+    ConvTranspose2d
 )
 import torch.nn.functional as F
 
@@ -80,6 +81,7 @@ class SegmentationHead(Module):
             num_channels=in_channels//2,
             device=device,
             dtype=dtype),
+            
             # x2
             Upsample(**upsampling_kwargs),
             # Conv2d(
