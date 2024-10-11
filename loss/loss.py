@@ -113,6 +113,7 @@ class TotalLoss(nn.Module):
         self.tversky_loss = TverskyLoss(alpha=0.7, beta=0.3)
 
     def forward(self, inputs, targets):
+        targets = torch.softmax(targets, dim=1)
         loss_focal = self.focal_loss(inputs, targets)
         loss_tversky = self.tversky_loss(inputs, targets)
 
@@ -123,8 +124,8 @@ if __name__ == "__main__":
 
     inputs = torch.randn(4, 2, 256, 256)  # Example predicted logits
     targets = torch.empty(4, 2, 256, 256).random_(2)  # Example binary targets
-
-
+    
+    
     loss = TotalLoss()
 
     _loss = loss(inputs, targets)
