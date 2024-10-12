@@ -42,11 +42,13 @@ class Trainer:
             torch.cuda.empty_cache()
 
     def train(self, epoch):
+        self.criterion.running_loss = 0.
         self.model.train()
         total_loss = 0
         print(F"TRAINING PHASE EPOCH: {epoch+1}")
         with tqdm.tqdm(total=len(self.train_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
             for data in self.train_loader:
+                self.optimizer.zero_grad()
                 image_name = data[0]
                 inputs = data[1].to(self.device)
                 d_targets, l_targets = data[2]
@@ -73,7 +75,7 @@ class Trainer:
                     "dice" : (d_dice + l_dice)/2
                 }
 
-                _loss.backward()
+                _loss.backward(retain_graph=True)
                 self.optimizer.step()
 
                 total_loss += _loss.item()
@@ -97,7 +99,9 @@ class Trainer:
         print(f'Epoch {epoch+1} Loss: {total_loss/len(self.train_loader)}')
         print()
 
+    @torch.no_grad()
     def val(self, epoch):
+        self.criterion.running_loss = 0.
         self.model.eval()
         total_loss = 0
         print(F"VALIDATION PHASE EPOCH: {epoch+1}")
