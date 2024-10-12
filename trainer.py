@@ -74,7 +74,7 @@ class Trainer:
         total_loss = 0
         print(F"VALIDATION PHASE EPOCH: {epoch}")
         with tqdm.tqdm(total=len(self.val_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
-            for data in self.train_loader:
+            for data in self.val_loader:
                 image_name = data[0]
                 inputs = data[1].to(self.device)
                 d_targets, l_targets = data[2]
