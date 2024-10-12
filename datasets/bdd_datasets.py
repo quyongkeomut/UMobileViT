@@ -91,10 +91,10 @@ class BDD100KDataset(torch.utils.data.Dataset):
         self.valid=valid
         if valid:
             self.root='./data/bdd100k/images/val'
-            self.names= random.sample(os.listdir(self.root), 10)
+            self.names= random.sample(os.listdir(self.root), 1000)
         else:
             self.root='./data/bdd100k/images/train'
-            self.names= random.sample(os.listdir(self.root), 100)
+            self.names= random.sample(os.listdir(self.root), 10000)
 
     def __len__(self):
         return len(self.names)
@@ -120,19 +120,10 @@ class BDD100KDataset(torch.utils.data.Dataset):
         label1= np.where(label1 == 2, 1, np.where((label1== 0) | (label1 == 1), 0, label1))
         _, label2= cv2.threshold(label2, 254, 255, cv2.THRESH_BINARY_INV)
 
-        print(label2.shape)
-        print(cv2.resize(label2, (24, 24)))
-
-        cv2.imshow("mask", label2)
-        cv2.waitKey(0)
-
    
         kernel = np.ones((8, 8), np.uint8)
 
-        print(cv2.resize(label2, (24,24)))
         label2 = cv2.dilate(label2, kernel, iterations=1)
-        cv2.imshow("mask", label2)
-        cv2.waitKey(0)
        
         if not self.valid:
             if random.random()<0.5:
