@@ -1,8 +1,8 @@
 alpha: float =  0.5
-out_channel: int = 2
+out_channel = [2, 2]
 patch_size = (2,2)
 num_epochs: int = 100
-batch_size: int = 24
+batch_size: int = 2
 optimizer: str = "adam"
 lr: float = 5e-4
 momentum: float = 0.9
