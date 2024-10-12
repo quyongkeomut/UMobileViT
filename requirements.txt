@@ -2,3 +2,4 @@ torch
 fvcore
 torchinfo
 opencv-python
+# pip install -U git+https://github.com/jlcsilva/segmentation_models.pytorch
