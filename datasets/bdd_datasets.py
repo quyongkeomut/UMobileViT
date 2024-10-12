@@ -117,10 +117,11 @@ class BDD100KDataset(torch.utils.data.Dataset):
         label1 = cv2.imread(drivable_path, 0)
         label2 = cv2.imread(lane_path, 0)
 
-        label1= np.where(label1 == 2, 1, np.where((label1== 0) | (label1 == 1), 0, label1))
+        label1= np.where(label1 == 2, 255, np.where((label1== 0) | (label1 == 1), 0, label1))
+
+        _, label1= cv2.threshold(label1, 254, 255, cv2.THRESH_BINARY_INV)
         _, label2= cv2.threshold(label2, 254, 255, cv2.THRESH_BINARY_INV)
 
-   
         kernel = np.ones((8, 8), np.uint8)
 
         label2 = cv2.dilate(label2, kernel, iterations=1)
