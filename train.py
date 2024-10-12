@@ -47,8 +47,8 @@ if __name__ == "__main__":
     model = model.to(device)
     otim_args = {
         "lr": lr,
-        "momentum": momentum,
-        "nesterov": nesterov 
+        # "momentum": momentum,
+        # "nesterov": nesterov 
     }
 
     optimizer = OPTIMIZERS[otim](model.parameters(), **otim_args)
