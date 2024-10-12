@@ -2,7 +2,7 @@ import torch
 import tqdm
 from datetime import datetime
 import os
-
+import gc
 today = datetime.today()
 
 formatted_today = today.strftime('%Y_%m_%d')
@@ -33,7 +33,9 @@ class Trainer:
     def run(self):
         for epoch in range(self.num_epochs):
             self.train(epoch=epoch)
+            
             self.val(epoch=epoch)
+            torch.cuda.empty_cache()
 
     def train(self, epoch):
         self.model.train()
@@ -62,7 +64,8 @@ class Trainer:
 
                 save_path = os.path.join(self.out_path, "model.pt")
                 torch.save(self.model, save_path)
-
+                torch.cuda.empty_cache()
+                gc.collect()
         print(f'Epoch {epoch+1} Loss: {total_loss/len(self.train_loader)}')
         print()
 
@@ -70,7 +73,7 @@ class Trainer:
         self.model.eval()
         total_loss = 0
         print(F"VALIDATION PHASE EPOCH: {epoch}")
-        with tqdm.tqdm(total=len(self.train_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
+        with tqdm.tqdm(total=len(self.val_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
             for data in self.train_loader:
                 image_name = data[0]
                 inputs = data[1].to(self.device)
@@ -84,14 +87,12 @@ class Trainer:
 
                 _loss = d_loss + l_loss
 
-                _loss.backward()
-                self.optimizer.step()
-
                 total_loss += _loss.item()
                 pbar.set_postfix(loss=_loss.item())
                 pbar.update(1)  # Increment the progress bar
-
-        print(f'Epoch {epoch+1} Loss: {total_loss/len(self.train_loader)}')
+                torch.cuda.empty_cache()
+                gc.collect()
+        print(f'Epoch {epoch+1} Loss: {total_loss/len(self.val_loader)}')
         print()
 
 if __name__ == "__main__":
