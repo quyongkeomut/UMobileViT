@@ -44,7 +44,7 @@ class Trainer:
     def train(self, epoch):
         self.model.train()
         total_loss = 0
-        print(F"TRAINING PHASE EPOCH: {epoch}")
+        print(F"TRAINING PHASE EPOCH: {epoch+1}")
         with tqdm.tqdm(total=len(self.train_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
             for data in self.train_loader:
                 image_name = data[0]
@@ -85,22 +85,22 @@ class Trainer:
                 torch.cuda.empty_cache()
                 gc.collect()
 
-            print("Drivable Mtrics:")
-            print(self.d_metrics)
-            print()
+        print("Drivable Mtrics:")
+        print(self.d_metrics)
+        print()
 
-            print("Lane Metrics:")
-            print(self.l_metrics)
-            print()
-            self.d_metrics.reset()
-            self.l_metrics.reset()
+        print("Lane Metrics:")
+        print(self.l_metrics)
+        print()
+        self.d_metrics.reset()
+        self.l_metrics.reset()
         print(f'Epoch {epoch+1} Loss: {total_loss/len(self.train_loader)}')
         print()
 
     def val(self, epoch):
         self.model.eval()
         total_loss = 0
-        print(F"VALIDATION PHASE EPOCH: {epoch}")
+        print(F"VALIDATION PHASE EPOCH: {epoch+1}")
         with tqdm.tqdm(total=len(self.val_loader), desc=f'Epoch {epoch+1}/{self.num_epochs}', unit='batch') as pbar:
             for data in self.val_loader:
                 image_name = data[0]
@@ -115,11 +115,36 @@ class Trainer:
 
                 _loss = d_loss + l_loss
 
+                self.d_metrics.update(d_outputs, d_targets)
+                d_metrics = self.d_metrics.compute()
+                # print(d_metrics)
+                self.l_metrics.update(l_outputs, l_targets)
+                l_metrics = self.l_metrics.compute()
+
+                d_iou, d_dice = d_metrics["iou"].mean().item(), d_metrics["dice"].mean().item()
+                l_iou, l_dice = l_metrics["iou"].mean().item(), l_metrics["dice"].mean().item()
+
+                metrics = {
+                    "iou" : (d_iou + l_iou)/2,
+                    "dice" : (d_dice + l_dice)/2
+                }
+
                 total_loss += _loss.item()
-                pbar.set_postfix(loss=_loss.item())
+                pbar.set_postfix(loss=_loss.item(), **metrics)
                 pbar.update(1)  # Increment the progress bar
                 torch.cuda.empty_cache()
                 gc.collect()
+                
+        print("Drivable Mtrics:")
+        print(self.d_metrics)
+        print()
+
+        print("Lane Metrics:")
+        print(self.l_metrics)
+        print()
+        self.d_metrics.reset()
+        self.l_metrics.reset()
+
         print(f'Epoch {epoch+1} Loss: {total_loss/len(self.val_loader)}')
         print()
 
