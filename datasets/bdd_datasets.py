@@ -91,10 +91,10 @@ class BDD100KDataset(torch.utils.data.Dataset):
         self.valid=valid
         if valid:
             self.root='./data/bdd100k/images/val'
-            self.names=os.listdir(self.root)
+            self.names= random.sample(os.listdir(self.root), 10000)
         else:
             self.root='./data/bdd100k/images/train'
-            self.names=os.listdir(self.root)
+            self.names= random.sample(os.listdir(self.root), 10000)
 
     def __len__(self):
         return len(self.names)
