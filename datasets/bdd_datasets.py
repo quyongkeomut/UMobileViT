@@ -111,20 +111,20 @@ class BDD100KDataset(torch.utils.data.Dataset):
         image_path = os.path.join(self.root, image_name)
         image = cv2.imread(image_path)
 
-        drivable_path = os.path.join(self.root.replace("images", "labels/drivable/masks"), image_name.replace("jpg", "png"))
-        lane_path = os.path.join(self.root.replace("images", "labels/lane/masks"), image_name.replace("jpg", "png"))
+        drivable_path = os.path.join(self.root.replace("images", "labels/drivable/binary_masks"), image_name.replace("jpg", "png"))
+        lane_path = os.path.join(self.root.replace("images", "labels/lane/binary_masks"), image_name.replace("jpg", "png"))
         
         label1 = cv2.imread(drivable_path, 0)
         label2 = cv2.imread(lane_path, 0)
 
-        label1= np.where(label1 == 2, 255, np.where((label1== 0) | (label1 == 1), 0, label1))
+        # label1= np.where(label1 == 2, 255, np.where((label1== 0) | (label1 == 1), 0, label1))
 
-        _, label1= cv2.threshold(label1, 254, 255, cv2.THRESH_BINARY_INV)
-        _, label2= cv2.threshold(label2, 254, 255, cv2.THRESH_BINARY_INV)
+        # _, label1= cv2.threshold(label1, 254, 255, cv2.THRESH_BINARY_INV)
+        # _, label2= cv2.threshold(label2, 254, 255, cv2.THRESH_BINARY_INV)
 
-        kernel = np.ones((8, 8), np.uint8)
+        # kernel = np.ones((8, 8), np.uint8)
 
-        label2 = cv2.dilate(label2, kernel, iterations=1)
+        # label2 = cv2.dilate(label2, kernel, iterations=1)
        
         if not self.valid:
             if random.random()<0.5:
