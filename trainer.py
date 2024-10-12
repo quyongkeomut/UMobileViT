@@ -12,15 +12,19 @@ class Trainer:
                 model,
                 criterion,
                 optimizer,
+                metrics,
                 num_epochs,
                 device,
                 train_loader,
                 val_loader,
+                num_classes = [2, 2],
                 out_path = "./weights"
                 ) -> None:
         self.model = model.to(device)
         self.criterion = criterion
         self.optimizer = optimizer
+        self.d_metrics = metrics(num_classes = num_classes[0], device = device)
+        self.l_metrics = metrics(num_classes = num_classes[1], device = device)
         self.num_epochs = num_epochs
         self.device = device
         self.train_loader = train_loader
@@ -55,17 +59,41 @@ class Trainer:
 
                 _loss = d_loss + l_loss
 
+                self.d_metrics.update(d_outputs, d_targets)
+                d_metrics = self.d_metrics.compute()
+                # print(d_metrics)
+                self.l_metrics.update(l_outputs, l_targets)
+                l_metrics = self.l_metrics.compute()
+
+                d_iou, d_dice = d_metrics["iou"].mean().item(), d_metrics["dice"].mean().item()
+                l_iou, l_dice = l_metrics["iou"].mean().item(), l_metrics["dice"].mean().item()
+
+                metrics = {
+                    "iou" : (d_iou + l_iou)/2,
+                    "dice" : (d_dice + l_dice)/2
+                }
+
                 _loss.backward()
                 self.optimizer.step()
 
                 total_loss += _loss.item()
-                pbar.set_postfix(loss=_loss.item())
+                pbar.set_postfix(loss=_loss.item(), **metrics)
                 pbar.update(1)  # Increment the progress bar
 
                 save_path = os.path.join(self.out_path, "model.pt")
                 torch.save(self.model, save_path)
                 torch.cuda.empty_cache()
                 gc.collect()
+
+            print("Drivable Mtrics:")
+            print(self.d_metrics)
+            print()
+
+            print("Lane Metrics:")
+            print(self.l_metrics)
+            print()
+            self.d_metrics.reset()
+            self.l_metrics.reset()
         print(f'Epoch {epoch+1} Loss: {total_loss/len(self.train_loader)}')
         print()
 

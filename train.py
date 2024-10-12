@@ -3,6 +3,7 @@ import tqdm
 from torch.utils.data import DataLoader
 from datasets.bdd_datasets import BDD100KDataset
 from loss.loss import TotalLoss
+from metrics.metrics import SegmentationMetrics
 from trainer import Trainer
 from experiments_setup.bdd.dataset import bdd100k_config
 from optimizer.optimizer import OPTIMIZERS
@@ -66,6 +67,8 @@ if __name__ == "__main__":
         model=model,
         criterion=criterion,
         optimizer=optimizer,
+        metrics=SegmentationMetrics,
+        num_classes=out_channels,
         num_epochs=num_epochs,
         train_loader=train_loader,
         val_loader=val_loader,
