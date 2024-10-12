@@ -16,3 +16,4 @@ weights/
 *.h5
 *.lnk
 _test_code.py
+datasets/gen*
