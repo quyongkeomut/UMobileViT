@@ -60,7 +60,7 @@ class SegmentationHead(Module):
     def __init__(self, 
         d_model: int = 96,
         alpha: float = 1,
-        out_channels: int = 3,
+        out_channels: int | Tuple[int, int] = [2, 2],
         norm_num_groups: int = 4,
         bias: bool = True, 
         initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
@@ -137,7 +137,7 @@ class SegmentationHead(Module):
             ReLU(),
             Conv2d(
                 in_channels=new_space_dim,
-                out_channels=out_channels,
+                out_channels=out_channels[0],
                 kernel_size=1,
                 bias=bias,
                 **factory_kwargs
@@ -204,7 +204,7 @@ class SegmentationHead(Module):
             ReLU(),
             Conv2d(
                 in_channels=new_space_dim,
-                out_channels=out_channels,
+                out_channels=out_channels[1],
                 kernel_size=1,
                 bias=bias,
                 **factory_kwargs
