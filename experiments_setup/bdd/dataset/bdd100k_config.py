@@ -4,8 +4,12 @@ patch_size = (2,2)
 num_epochs: int = 50
 batch_size: int = 24
 optimizer: str = "adamw"
+
 lr: float = 5e-4
-momentum: float = 0.9
-nesterov: bool = False
+optim_args = {
+        "lr": lr,
+        # "momentum": momentum,
+        # "nesterov": nesterov 
+    }
 device = "cuda"
 check_point = None
