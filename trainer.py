@@ -126,7 +126,7 @@ class Trainer:
 
         save_weights = os.path.join(self.out_path, "epochs")
         os.makedirs(save_weights, exist_ok=True)
-        torch.save(self.model, os.path.join(save_weights, f"epoch_{epoch+1}.pt"))
+        torch.save(self.model.state_dict(), os.path.join(save_weights, f"epoch_{epoch+1}.pth"))
 
         self.d_metrics.reset()
         self.l_metrics.reset()
@@ -205,7 +205,7 @@ class Trainer:
                 os.remove(file_path)
 
             save_path = os.path.join(self.out_path, f"best_epoch_{epoch + 1}.pt")
-            torch.save(self.model, save_path)
+            torch.save(self.model.state_dict(), save_path)
 
         return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_IOU:4f}", f"{d_mIOU:4f}", f"{l_acc:4f}", f"{l_IOU:4f}", f"{l_mIOU:4f}"]
 

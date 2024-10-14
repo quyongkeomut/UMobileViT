@@ -38,6 +38,7 @@ if __name__ == "__main__":
     nesterov = bdd100k_config.nesterov
     otim = bdd100k_config.optimizer
     device = bdd100k_config.device
+    check_point = bdd100k_config.check_point
 
     model = UMobileViT(
         alpha=alpha,
@@ -45,7 +46,11 @@ if __name__ == "__main__":
         out_channels=out_channels,
         patch_size=patch_size
     )
+
+    if check_point :
+        model.load_state_dict(torch.load(check_point, weights_only=True))
     model = model.to(device)
+    
     otim_args = {
         "lr": lr,
         # "momentum": momentum,

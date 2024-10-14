@@ -8,3 +8,4 @@ lr: float = 5e-4
 momentum: float = 0.9
 nesterov: bool = False
 device = "cuda"
+check_point = None
