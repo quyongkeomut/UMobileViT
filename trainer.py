@@ -23,6 +23,20 @@ class Trainer:
                 num_classes = [2, 2],
                 out_path = "./weights"
                 ) -> None:
+        """ Trainer
+
+        Args:
+            model: model for training
+            criterion: loss function
+            optimizer: optimizer
+            metrics: metrics caculator
+            num_epochs: number of epochs
+            device: device
+            train_loader: train loader
+            val_loader: valid loader
+            num_classes (list, optional): num output classes. Defaults to [2, 2].
+            out_path (str, optional): output path for weights. Defaults to "./weights".
+        """
         self.model = model.to(device)
         self.criterion = criterion
         self.optimizer = optimizer
@@ -49,13 +63,16 @@ class Trainer:
             val_writer = csv.writer(val_csvfile)
             val_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_IOU', 'd_mIOU',  'l_Acc', 'l_IOU', 'l_mIOU'])
         
+        # Train model
         for epoch in range(self.num_epochs):
             
+            # Train
             train_metrics = self.train(epoch=epoch)
             with open(train_csv_path, mode='a', newline='') as train_csvfile:
                 train_writer = csv.writer(train_csvfile)
                 train_writer.writerow(train_metrics)
             
+            # Valid
             val_metrics = self.val(epoch=epoch)
             with open(val_csv_path, mode='a', newline='') as val_csvfile:
                 val_writer = csv.writer(val_csvfile)
