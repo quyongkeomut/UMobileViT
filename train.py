@@ -12,33 +12,42 @@ import numpy as np
 import random
 
 def set_seed(seed):
-    # Đặt seed cho PyTorch
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # Nếu sử dụng GPU
-
-    # Đặt seed cho NumPy
+    torch.cuda.manual_seed_all(seed)  
     np.random.seed(seed)
 
-    # Đặt seed cho Random
+
     random.seed(seed)
 
-# Ví dụ sử dụng
-set_seed(42)
+
 
 if __name__ == "__main__":
 
-    alpha = bdd100k_config.alpha
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Training args')
+
+    parser.add_argument('--scale', type=float, default=0.5,required=False, help='Model scale')
+    parser.add_argument('--epochs', type=int, default=50, help='Num epochs')
+    parser.add_argument('--batch', type=int, default=16, help='batch size')
+    parser.add_argument('--seed', type=int, default=42, help='seed for model')
+    parser.add_argument('--device', type=str, default="cuda", help='cuda or cpu')
+    parser.add_argument('--ckpt', type=str, default=None, help='cuda or cpu')
+
+    args = parser.parse_args()
+
+    alpha = args.scale
+    num_epochs = args.epochs
+    batch_size = args.batch
+    seed = args.seed
+    device = args.device
+    check_point = args.ckpt
+    set_seed(seed)
+
     out_channels = bdd100k_config.out_channel
     patch_size = bdd100k_config.patch_size
-
-    num_epochs = bdd100k_config.num_epochs
-    batch_size = bdd100k_config.batch_size
-    lr = bdd100k_config.lr
-    momentum = bdd100k_config.momentum
-    nesterov = bdd100k_config.nesterov
     otim = bdd100k_config.optimizer
-    device = bdd100k_config.device
-    check_point = bdd100k_config.check_point
+    optim_args = bdd100k_config.optim_args
 
     model = UMobileViT(
         alpha=alpha,
@@ -51,13 +60,8 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(check_point, weights_only=True))
     model = model.to(device)
     
-    otim_args = {
-        "lr": lr,
-        # "momentum": momentum,
-        # "nesterov": nesterov 
-    }
 
-    optimizer = OPTIMIZERS[otim](model.parameters(), **otim_args)
+    optimizer = OPTIMIZERS[otim](model.parameters(), **optim_args)
     print(optimizer)
 
     criterion = TotalLoss()
