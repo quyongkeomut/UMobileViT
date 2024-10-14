@@ -204,7 +204,7 @@ class Trainer:
             for file_path in files_to_delete:
                 os.remove(file_path)
 
-            save_path = os.path.join(self.out_path, f"best_epoch_{epoch + 1}.pt")
+            save_path = os.path.join(self.out_path, f"best_epoch_{epoch + 1}.pth")
             torch.save(self.model.state_dict(), save_path)
 
         return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_IOU:4f}", f"{d_mIOU:4f}", f"{l_acc:4f}", f"{l_IOU:4f}", f"{l_mIOU:4f}"]
