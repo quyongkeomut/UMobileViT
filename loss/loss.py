@@ -9,6 +9,7 @@ from typing import Optional, List
 from functools import partial
 # from utils.plot import display
 # from segmentation_models_pytorch.losses import FocalLoss, JaccardLoss
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 class FocalLoss(nn.Module):
     """
@@ -108,10 +109,18 @@ class TverskyLoss(nn.Module):
         return 1 - tversky_index
 
 class TotalLoss(nn.Module):
+
     def __init__(self,
                 alpha = 1.,
                 beta = 1.):
+        """
+
+        Args:
+            alpha (float, optional): weight for focal loss. Defaults to 1..
+            beta (float, optional): weight for tversky loss. Defaults to 1..
+        """
         super(TotalLoss, self).__init__()
+
         self.alpha = alpha
         self.beta = beta
         self.focal_loss = FocalLoss()
@@ -119,6 +128,15 @@ class TotalLoss(nn.Module):
         # self.running_loss = 0
 
     def forward(self, inputs, targets):
+        """_summary_
+
+        Args:
+            inputs (Tensor): input tensor
+            targets (Tensor): target tensor
+
+        Returns:
+            float: total loss
+        """
         targets = torch.softmax(targets, dim=1)
         loss_focal = self.focal_loss(inputs, targets)
         loss_tversky = self.tversky_loss(inputs, targets)
@@ -126,7 +144,8 @@ class TotalLoss(nn.Module):
         total_loss = self.alpha*loss_focal + self.beta*loss_tversky
 
         return total_loss
-        
+
+
 if __name__ == "__main__":
 
     inputs = torch.randn(4, 2, 256, 256)  # Example predicted logits
