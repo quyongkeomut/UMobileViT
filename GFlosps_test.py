@@ -10,7 +10,8 @@ from model.umobilevit import UMobileViT
 from model.seg_head import SegmentationHead
 
 if __name__ == "__main__":
-    model = UMobileViT(alpha=0.5, patch_size=(2, 2), out_channels=2)
+    model = UMobileViT(alpha=0.5, patch_size=(2, 2), out_channels=[2,2])
+    
     img_size = (3, 320, 640)
     input = torch.randn(size=(1, *img_size))
     input_shape = (1, *img_size)
