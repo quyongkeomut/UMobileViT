@@ -172,7 +172,7 @@ class Trainer:
                 d_mIOU = self.d_metrics.meanIntersectionOverUnion()
 
 
-                l_acc = self.l_metrics.pixelAccuracy()
+                l_acc = self.l_metrics.lineAccuracy()
                 l_IOU = self.l_metrics.IntersectionOverUnion()
                 l_mIOU = self.l_metrics.meanIntersectionOverUnion()
 
