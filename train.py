@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument('--scale', type=float, default=0.5,required=False, help='Model scale')
     parser.add_argument('--epochs', type=int, default=50, help='Num epochs')
     parser.add_argument('--batch', type=int, default=16, help='batch size')
-    parser.add_argument('--seed', type=int, default=42, help='seed for model')
+    parser.add_argument('--seed', type=int, default=42, help='seed for training')
     parser.add_argument('--device', type=str, default="cuda", help='cuda or cpu')
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint for coutinue training')
 
