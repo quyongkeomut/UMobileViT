@@ -12,7 +12,9 @@ import cv2
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+from evaluate import SegmentationMetric
 device = "cuda"
+
 if __name__ == "__main__":
 
     model = torch.load(r"weights\2024_10_12\model.pt", weights_only=False)
@@ -20,6 +22,7 @@ if __name__ == "__main__":
 
     model.eval()
     example_input_path =  r"data\bdd100k\images\val\b1c81faa-c80764c5.jpg"
+    metrics = SegmentationMetric(2)
 
     image_raw = cv2.imread(example_input_path)
     image = cv2.resize(image_raw, (640, 320))
@@ -36,13 +39,17 @@ if __name__ == "__main__":
 
     print(time.time() - t1)
 
-    drivable = torch.argmax(ouput[0].squeeze(0), dim=0).cpu().detach().numpy()
-    lane = torch.argmax(ouput[1].squeeze(0), dim=0).cpu().detach().numpy()
+    drivable = torch.argmax(ouput[0], dim=1).cpu().detach().numpy()
+    lane = torch.argmax(ouput[1], dim=1).cpu().detach().numpy()
 
-    image_raw = cv2.resize(image_raw, (640, 320))
-    plt.imshow(image_raw)
-    plt.imshow(lane, alpha=0.3)
-    plt.show()
+    metrics.addBatch(drivable, lane)
+
+    print(metrics.meanIntersectionOverUnion(), metrics.IntersectionOverUnion())
+    
+    # image_raw = cv2.resize(image_raw, (640, 320))
+    # plt.imshow(image_raw)
+    # plt.imshow(lane, alpha=0.3)
+    # plt.show()
 
     
     # cv2.imshow("image", drivable)
