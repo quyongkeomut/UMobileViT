@@ -2,16 +2,26 @@ from typing import Optional, Tuple, List
 
 import torch
 from torch import Tensor
+
 from torch.nn.parameter import Parameter
 from torch.nn.functional import (
     conv2d, 
     softmax, 
     relu,
     dropout)
+from torch.nn.modules.utils import _pair
+
 from torch.overrides import (
     handle_torch_function,
     has_torch_function
 )
+
+CONV_KWARGS = {
+    "stride": _pair(1),
+    "padding": _pair(0),
+    "dilation": _pair(1),
+    "groups": 1,
+}
 
 
 def _separable_attn_shape_check(
@@ -73,7 +83,7 @@ def _in_projection_packed(
     if k is v:
         if q is k:
             # self-attention
-            proj = conv2d(q, w, b) # (N, 1 + C*2, ...)
+            proj = conv2d(q, w, b, **CONV_KWARGS) # (N, 1 + C*2, ...)
             return proj.split([1, C, C], dim=1) # q, k, v order
         else:
             # encoder-decoder attention
@@ -82,8 +92,8 @@ def _in_projection_packed(
                 b_q = b_kv = None
             else:
                 b_q, b_kv = b.split([1, C * 2])
-            q_proj = conv2d(q, w_q, b_q) # (N, 1, ...)
-            kv_proj = conv2d(k, w_kv, b_kv) # (N, C*2, ...)
+            q_proj = conv2d(q, w_q, b_q, **CONV_KWARGS) # (N, 1, ...)
+            kv_proj = conv2d(k, w_kv, b_kv, **CONV_KWARGS) # (N, C*2, ...)
             k_proj, v_proj = kv_proj.split([C, C], dim=1) # (N, C, ...)
             return q_proj, k_proj, v_proj
     else:
@@ -92,7 +102,7 @@ def _in_projection_packed(
             b_q = b_k = b_v = None
         else:
             b_q, b_k, b_v = b.split([1, C, C])
-        return conv2d(q, w_q, b_q), conv2d(k, w_k, b_k), conv2d(v, w_v, b_v)
+        return conv2d(q, w_q, b_q, **CONV_KWARGS), conv2d(k, w_k, b_k, **CONV_KWARGS), conv2d(v, w_v, b_v, **CONV_KWARGS)
     
 
 def _in_projection(
@@ -165,7 +175,7 @@ def _in_projection(
     assert b_v is None or b_v.shape == (
         Cq,
     ), f"expecting value bias shape of {(Cq,)}, but got {b_v.shape}"
-    return conv2d(q, w_q, b_q), conv2d(k, w_k, b_k), conv2d(v, w_v, b_v)
+    return conv2d(q, w_q, b_q, **CONV_KWARGS), conv2d(k, w_k, b_k, **CONV_KWARGS), conv2d(v, w_v, b_v, **CONV_KWARGS)
 
 
 def separable_attention_forward(
@@ -322,6 +332,6 @@ def separable_attention_forward(
     
     # compute attention values
     attn_values = torch.mul(context_vec, v) # (N, C, spatial, seq_len)
-    attn_values = conv2d(attn_values, out_proj_weight, out_proj_bias) # (N, Ci, spatial, seq_len)
+    attn_values = conv2d(attn_values, out_proj_weight, out_proj_bias, **CONV_KWARGS) # (N, Ci, spatial, seq_len)
     
     return (attn_values, context_scores) if need_context_scores else (attn_values, )
