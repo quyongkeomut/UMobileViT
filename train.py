@@ -41,7 +41,7 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
     
-    torch.use_deterministic_algorithms(True)
+    # torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     try:
         torch.multiprocessing.set_start_method('spawn')
@@ -119,9 +119,7 @@ if __name__ == "__main__":
         last_epoch = 0
         lr_scheduler_increase = lr_scheduler_cosine = None
         
-    # model = model.to(device)
-    
-    
+    model = model.to(device)    
 
     criterion = TotalLoss()
 

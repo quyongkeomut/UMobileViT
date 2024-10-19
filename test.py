@@ -17,7 +17,7 @@ device = "cuda"
 
 if __name__ == "__main__":
 
-    model = torch.load(r"weights\2024_10_12\model.pt", weights_only=False)
+    model = torch.load(r"model.pt", weights_only=False)
     model.to(device)
 
     model.eval()
