@@ -26,7 +26,7 @@ from scipy.signal import butter, filtfilt
 from tqdm import tqdm
 
 
-def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-9):
+def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-5):
     # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
     box2 = box2.T
 
@@ -339,7 +339,7 @@ def color_list():
 
     return [hex2rgb(h) for h in plt.rcParams['axes.prop_cycle'].by_key()['color']]
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision-recall_curve.png', names=[]):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision-recall_curve.png', names=[], eps=1e-5):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -378,7 +378,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
             tpc = tp[i].cumsum(0)
 
             # Recall
-            recall = tpc / (n_l + 1e-16)  # recall curve
+            recall = tpc / (n_l + eps)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
 
             # Precision
@@ -391,7 +391,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
 
     # Compute F1 score (harmonic mean of precision and recall)
-    f1 = 2 * p * r / (p + r + 1e-16)
+    f1 = 2 * p * r / (p + r + eps)
     i=r.mean(0).argmax()
 
     if plot:
@@ -399,7 +399,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
 
     return p[:, i], r[:, i], ap, f1[:, i], unique_classes.astype('int32')
 
-def compute_ap(recall, precision):
+def compute_ap(recall, precision, eps=1e-5):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rbgirshick/py-faster-rcnn.
     # Arguments
@@ -410,7 +410,7 @@ def compute_ap(recall, precision):
     """
 
     # Append sentinel values to beginning and end
-    mrec = np.concatenate(([0.], recall, [recall[-1] + 1E-3]))
+    mrec = np.concatenate(([0.], recall, [recall[-1] + eps]))
     mpre = np.concatenate(([1.], precision, [0.]))
 
     # Compute the precision envelope

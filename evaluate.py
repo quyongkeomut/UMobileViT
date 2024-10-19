@@ -15,7 +15,7 @@ def fitness(x):
     return (x[:, :4] * w).sum(1)
 
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision-recall_curve.png', names=[]):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision-recall_curve.png', names=[], eps=1e-5):
     """ Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -54,7 +54,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
             tpc = tp[i].cumsum(0)
 
             # Recall
-            recall = tpc / (n_l + 1e-16)  # recall curve
+            recall = tpc / (n_l + eps)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # r at pr_score, negative x, xp because xp decreases
 
             # Precision
@@ -68,7 +68,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='precision
                     py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
 
     # Compute F1 score (harmonic mean of precision and recall)
-    f1 = 2 * p * r / (p + r + 1e-16)
+    f1 = 2 * p * r / (p + r + eps)
     i = r.mean(0).argmax()
 
     if plot:
@@ -107,7 +107,12 @@ def compute_ap(recall, precision):
 
 class ConfusionMatrix:
     # Updated version of https://github.com/kaanakan/object_detection_confusion_matrix
-    def __init__(self, nc, conf=0.25, iou_thres=0.45):
+    def __init__(
+        self, 
+        nc: int, 
+        conf: float = 0.25, 
+        iou_thres: float = 0.45
+    ):
         self.matrix = np.zeros((nc + 1, nc + 1))
         self.nc = nc  # number of classes
         self.conf = conf
@@ -156,11 +161,16 @@ class ConfusionMatrix:
     def matrix(self):
         return self.matrix
 
-    def plot(self, save_dir='', names=()):
+    def plot(
+        self, 
+        save_dir='', 
+        names=(), 
+        eps: float = 1e-5
+    ) -> None:
         try:
             import seaborn as sn
 
-            array = self.matrix / (self.matrix.sum(0).reshape(1, self.nc + 1) + 1E-6)  # normalize
+            array = self.matrix / (self.matrix.sum(0).reshape(1, self.nc + 1) + eps)  # normalize
             array[array < 0.005] = np.nan  # don't annotate (would appear as 0.00)
 
             fig = plt.figure(figsize=(12, 9), tight_layout=True)
@@ -185,8 +195,13 @@ class SegmentationMetric(object):
     confusionMatrix [[0(TN),1(FP)],
                      [2(FN),3(TP)]]
     '''
-    def __init__(self, numClass):
+    def __init__(
+        self, 
+        numClass: int, 
+        eps: float = 1e-5
+    ) -> None:
         self.numClass = numClass
+        self.eps = eps
         self.confusionMatrix = np.zeros((self.numClass,)*2)
 
     def pixelAccuracy(self):
@@ -196,13 +211,13 @@ class SegmentationMetric(object):
         return acc
         
     def lineAccuracy(self):
-        Acc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=1) + 1e-12)
+        Acc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=1) + self.eps)
         return Acc[1]
 
     def classPixelAccuracy(self):
         # return each category pixel accuracy(A more accurate way to call it precision)
         # acc = (TP) / TP + FP
-        classAcc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=0) + 1e-12)
+        classAcc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=0) + self.eps)
         return classAcc
 
     def meanPixelAccuracy(self):
