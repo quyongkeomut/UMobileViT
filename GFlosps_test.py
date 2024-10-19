@@ -9,8 +9,13 @@ from torchinfo import summary
 from model.umobilevit import UMobileViT
 from model.seg_head import SegmentationHead
 
+from thop import profile, clever_format
+from ptflops import get_model_complexity_info
+from torch.profiler import profile, record_function, ProfilerActivity
+
+
 if __name__ == "__main__":
-    model = UMobileViT(alpha=0.5, patch_size=(2, 2), out_channels=[2,2])
+    model = UMobileViT(alpha=0.25, patch_size=(2, 2), out_channels=[2,2])
     
     img_size = (3, 320, 640)
     input = torch.randn(size=(1, *img_size))
@@ -18,13 +23,38 @@ if __name__ == "__main__":
     
     model_inputs = (input, )
 
-    output = model(input)
-    print(output[0].shape, output[1].shape)
-    flops = fnn.FlopCountAnalysis(model, model_inputs)
-    print(fnn.flop_count_table(flops, max_depth=3))
+    # output = model(input)
+    # print(output[0].shape, output[1].shape)
     
+    
+    # fvcore
+    # flops = fnn.FlopCountAnalysis(model, model_inputs)
+    # print(fnn.flop_count_table(flops, max_depth=3))
+    
+    
+    # torch summary
     summary(model, input_data=model_inputs, depth=5)
 
+
+    # pytorch op counter - thop
+    # macs, params = profile(model, inputs=model_inputs)
+    # macs, params = clever_format([macs, params], "%.3f")
+    # print(macs)
+    
+    
+    # flops counter - ptflops
+    # macs, params = get_model_complexity_info(model, img_size, as_strings=True, backend='pytorch',
+    #                                          print_per_layer_stat=True, verbose=True)
+    # print(f'Computational complexity: {macs}')
+    # print(f'Number of parameters: {params}')
+    
+    
+    # torch profiler
+    with profile(activities=[ProfilerActivity.CPU], record_shapes=True, with_flops=True) as prof:
+        with record_function("model_inference"):
+            model(input)
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    
     
     # --segmentation head---
     # model = SegmentationHead(

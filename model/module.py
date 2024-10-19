@@ -25,8 +25,7 @@ from model.transfomer import (
 )
 
 def _get_clones(module, N):
-    # FIXME: copy.deepcopy() is not defined on nn.module
-    return ModuleList([deepcopy(module) for i in range(N)])
+    return [deepcopy(module) for i in range(N)]
 
 
 def _get_expansion_block(
@@ -53,7 +52,7 @@ def _get_expansion_block(
             in_channels=expanded_channels,
             out_channels=expanded_channels,
             kernel_size=3,
-            padding="same",
+            padding=(1, 1),
             groups=expanded_channels,
             bias=bias,
             **factory_kwargs),
@@ -70,6 +69,7 @@ def _get_expansion_block(
             **factory_kwargs),
     )
     return block
+
 
 class _UMobileViTLayer(Module):
     def __init__(
@@ -136,7 +136,11 @@ class _UMobileViTLayer(Module):
         }
         if transformer_block is not None:
             transformer_block = transformer_block(**tranformer_block_kwargs, **factory_kwargs)
-            self.global_block = _get_clones(transformer_block, num_transformer_block)
+            global_block = _get_clones(transformer_block, num_transformer_block)
+            if isinstance(transformer_block, TransformerEncoderLayer):
+                self.global_block = Sequential(*global_block)
+            elif isinstance(transformer_block, TransformerDecoderLayer):
+                self.global_block = ModuleList(global_block)
         else:
             self.global_block = ModuleList([])
         
@@ -146,7 +150,7 @@ class _UMobileViTLayer(Module):
                 in_channels=in_channels,
                 out_channels=in_channels,
                 kernel_size=3,
-                padding="same",
+                padding=(1, 1),
                 bias=bias,
                 groups=in_channels,
                 **factory_kwargs),
@@ -171,17 +175,21 @@ class _UMobileViTLayer(Module):
         )
         
         # expansion block implementation, inspired by MobileNetV2 block
-        self.expansion_block = _get_expansion_block(
-            in_channels,
-            expansion_factor,
-            norm_num_groups,
-            bias,
-            **factory_kwargs) if transformer_block is not None else Identity()
+        self.expansion_block = (
+            _get_expansion_block(
+                in_channels,
+                expansion_factor,
+                norm_num_groups,
+                bias,
+                **factory_kwargs)
+            ) if transformer_block is not None else Identity()
         
         # out normalization
-        self.out_norm = GroupNorm(num_groups=norm_num_groups,
-                                  num_channels=in_channels,
-                                  **factory_kwargs)
+        self.out_norm = GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            **factory_kwargs
+        )
         
         self._reset_parameters()
 

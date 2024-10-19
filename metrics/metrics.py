@@ -1,15 +1,30 @@
+from typing import Dict
+
 import torch
+from torch import Tensor
 
 class SegmentationMetrics:
-    def __init__(self, num_classes, device='cpu'):
+    def __init__(
+        self, 
+        num_classes: int, 
+        eps: float = 1e-5,
+        device='cpu'
+    ) -> None:
         self.num_classes = num_classes
         self.device = device
+        self.eps = eps
         self.reset()
 
-    def reset(self):
-        self.confusion_matrix = torch.zeros((self.num_classes, self.num_classes), device=self.device)
 
-    def update(self, preds, targets):
+    def reset(self):
+        self.confusion_matrix: Tensor = torch.zeros((self.num_classes, self.num_classes), device=self.device)
+
+
+    def update(
+        self, 
+        preds: Tensor, 
+        targets: Tensor
+    ) -> None:
 
         preds = torch.argmax(preds, dim=1)
         targets = torch.argmax(targets, dim=1)
@@ -25,18 +40,19 @@ class SegmentationMetrics:
         
         self.confusion_matrix += hist
 
-    def compute(self):
+
+    def compute(self) -> Dict[str, Tensor]:
         confusion_matrix = self.confusion_matrix
         
         tp = torch.diag(confusion_matrix)
         fp = confusion_matrix.sum(dim=0) - tp
         fn = confusion_matrix.sum(dim=1) - tp
         
-        precision = tp / (tp + fp + 1e-7)
-        recall = tp / (tp + fn + 1e-7)
+        precision = tp / (tp + fp + self.eps)
+        recall = tp / (tp + fn + self.eps)
         
-        dice = 2 * tp / (2 * tp + fp + fn + 1e-7)
-        iou = tp / (tp + fp + fn + 1e-7)
+        dice = 2 * tp / (2 * tp + fp + fn + self.eps)
+        iou = tp / (tp + fp + fn + self.eps)
         
         return {
             'precision': precision,
@@ -45,7 +61,8 @@ class SegmentationMetrics:
             'iou': iou
         }
 
-    def __str__(self):
+
+    def __str__(self) -> str:
         metrics = self.compute()
         class_wise = "\n".join([
             f"Class {i}: Precision: {metrics['precision'][i]:.4f}, "

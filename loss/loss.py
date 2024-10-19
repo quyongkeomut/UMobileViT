@@ -1,15 +1,13 @@
 import torch
+from torch import Tensor
 import torch.nn as nn
-import cv2
-import numpy as np
-from torch.nn.modules.loss import _Loss
 import torch.nn.functional as F
 # from utils import BBoxTransform, ClipBoxes
 from typing import Optional, List
 from functools import partial
 # from utils.plot import display
 # from segmentation_models_pytorch.losses import FocalLoss, JaccardLoss
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+
 
 class FocalLoss(nn.Module):
     """
@@ -37,24 +35,30 @@ class FocalLoss(nn.Module):
     Returns:
     - The computed Focal Loss value for the batch.
     """
-    def __init__(self, 
-                 alpha: float = 0.25, 
-                 gamma: float = 2, 
-                 reduction: str = 'mean'):
+    def __init__(
+        self, 
+        alpha: float = 0.25, 
+        gamma: float = 2, 
+        reduction: str = 'mean',
+        eps: float = 1e-5
+    ) -> None:
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        self.eps = eps
 
-    def forward(self, 
-                inputs: torch.Tensor, 
-                targets: torch.Tensor
-                ):
+
+    def forward(
+        self, 
+        inputs: Tensor, 
+        targets: Tensor
+    ) -> Tensor:
         # Cross Entropy Loss
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
         
         # p_t is the predicted probability for the true class
-        p_t = 1/(torch.exp(BCE_loss) + 1e-5)
+        p_t = 1/(torch.exp(BCE_loss) + self.eps)
         
         # Focal Loss
         focal_loss = self.alpha * (1 - p_t) ** self.gamma * BCE_loss
@@ -66,28 +70,33 @@ class FocalLoss(nn.Module):
         else:
             return focal_loss
 
+
 class TverskyLoss(nn.Module):
-    def __init__(self,
-                alpha: float =0.5, 
-                beta: float=0.5, 
-                smooth: float=1e-6):
+    def __init__(
+        self,
+        alpha: float =0.5, 
+        beta: float=0.5, 
+        eps: float=1e-5
+    ) -> None:
         """
         Tversky Loss for imbalanced image segmentation.
         
         Parameters:
         - alpha: weight for false positives.
         - beta: weight for false negatives.
-        - smooth: small constant to avoid division by zero.
+        - eps: small constant to avoid division by zero.
         """
         super(TverskyLoss, self).__init__()
         self.alpha = alpha
         self.beta = beta
-        self.smooth = smooth
+        self.eps = eps
 
-    def forward(self, 
-                inputs: torch.Tensor, 
-                targets: torch.Tensor
-                ):
+
+    def forward(
+        self, 
+        inputs: Tensor, 
+        targets: Tensor
+    ) -> Tensor:
         # Apply sigmoid if inputs are logits
         inputs = torch.sigmoid(inputs)
 
@@ -101,18 +110,20 @@ class TverskyLoss(nn.Module):
         false_pos = (inputs * (1 - targets)).sum()
 
         # Compute Tversky index
-        tversky_index = (true_pos + self.smooth) / (
-            true_pos + self.alpha * false_pos + self.beta * false_neg + self.smooth 
+        tversky_index = true_pos / (
+            true_pos + self.alpha * false_pos + self.beta * false_neg + self.eps 
         )
 
         # Return Tversky loss
         return 1 - tversky_index
 
-class TotalLoss(nn.Module):
 
-    def __init__(self,
-                alpha = 1.,
-                beta = 1.):
+class TotalLoss(nn.Module):
+    def __init__(
+        self,
+        alpha: float = 1.,
+        beta: float = 1.
+    ) -> None:
         """
 
         Args:
@@ -126,6 +137,7 @@ class TotalLoss(nn.Module):
         self.focal_loss = FocalLoss()
         self.tversky_loss = TverskyLoss()
         # self.running_loss = 0
+
 
     def forward(self, inputs, targets):
         """_summary_

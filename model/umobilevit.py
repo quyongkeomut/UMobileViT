@@ -1,46 +1,23 @@
 from typing import Tuple, Callable
-from math import prod
-from copy import deepcopy
 
 import torch
 from torch import Tensor
-from torch.nn import (
-    Module,
-    ModuleList,
-    Sequential,
-    ReLU,
-    Conv2d,
-    GroupNorm,
-    Upsample,
-    Identity
-)
-import torch.nn.functional as F
+from torch.nn import Module
 
-from torch.nn.modules.utils import _pair
-
-from torch.nn.init import zeros_
-
-from model.transfomer import (
-    TransformerEncoderLayer, 
-    TransformerDecoderLayer,
-    _get_initializer
-)
 from model.encoder import UMobileViTEncoder
 from model.decoder import UMobileViTDecoder
 from model.seg_head import SegmentationHead
-
-
 
      
 class UMobileViT(Module):
     def __init__(
         self,
         in_channels: int = 3,
-        out_channels: int = 3,
-        d_model: int = 96,
-        expansion_factor: float = 5,
+        out_channels: int | Tuple[int, int] = (2, 2),
+        d_model: int = 64,
+        expansion_factor: float = 8,
         alpha: float = 1,
-        patch_size: int | Tuple[int, int] = (3, 2),
+        patch_size: int | Tuple[int, int] = (2, 2),
         dropout_p: float = 0.1,
         norm_num_groups: int = 4,
         bias: bool = True, 
@@ -90,6 +67,7 @@ class UMobileViT(Module):
             out_channels=out_channels,
             **kwargs 
         )
+    
     
     def forward(self, input: Tensor) -> Tensor:
         encoder_outputs = self.encoder(input)
