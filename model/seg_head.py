@@ -1,6 +1,4 @@
 from typing import Tuple, Callable
-from math import prod
-from copy import deepcopy
 
 import torch
 from torch import Tensor
@@ -12,10 +10,15 @@ from torch.nn import (
     GroupNorm,
     Upsample,
 )
+from torch.nn.modules.utils import _pair
 
 from torch.nn.init import zeros_
 
-from model.module import _get_initializer
+from model.module import (
+    _get_initializer,
+    _get_clones
+)
+
 
 def _get_upsample_block(
     in_channels: int,
@@ -35,7 +38,7 @@ def _get_upsample_block(
             out_channels=in_channels,
             kernel_size=3,
             stride=1,
-            padding="same",
+            padding=(1, 1),
             groups=in_channels,
             bias=bias,
             
@@ -76,9 +79,11 @@ class SegmentationHead(Module):
         initializer = _get_initializer(initializer)
         self.initializer = initializer
         in_channels: int = int(alpha*d_model)
+        out_channels = _pair(out_channels)
         new_space_dim = in_channels
         
-        self.lane_head = Sequential(
+        # init the upsample part, which share the same structure at each head
+        upsample_head = Sequential(
             # project to new space
             Conv2d(
                 in_channels=in_channels,
@@ -93,44 +98,32 @@ class SegmentationHead(Module):
                 num_channels=new_space_dim,
                 **factory_kwargs
             ),
-            
-            # x2 
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
-            # x2
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
-            # x2
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
+        )
+        # upsize to 8 times 
+        upsample_head.extend(
+            _get_clones(
+                _get_upsample_block(
+                    in_channels=new_space_dim,
+                    bias=bias,
+                    norm_num_groups=norm_num_groups,
+                    initializer=self.initializer,
+                    **upsampling_kwargs, 
+                    **factory_kwargs
+                ) 
+            , 3)
+        )
+        
+        self.lane_head, self.drivable_head = _get_clones(upsample_head, 2)
+        
+        # lane head
+        self.lane_head.extend([
             # output conv
             Conv2d(
                 in_channels=new_space_dim,
                 out_channels=new_space_dim,
                 kernel_size=3,
                 stride=1,
-                padding="same",
+                padding=(1, 1),
                 groups=new_space_dim,
                 bias=bias,
             ),
@@ -141,63 +134,18 @@ class SegmentationHead(Module):
                 kernel_size=1,
                 bias=bias,
                 **factory_kwargs
-            ),   
-            
-        )
-
-        self.drivable_head = Sequential(
-            # project to lower space
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=new_space_dim,
-                kernel_size=1,
-                bias=bias,
-                **factory_kwargs
             ),
-            ReLU(),
-            GroupNorm(
-                num_groups=norm_num_groups,
-                num_channels=new_space_dim,
-                **factory_kwargs
-            ),
-            
-            # x2 
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
-            # x2
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
-            # x2
-            _get_upsample_block(
-                in_channels=new_space_dim,
-                bias=bias,
-                norm_num_groups=norm_num_groups,
-                initializer=initializer,
-                **upsampling_kwargs, 
-                **factory_kwargs
-            ),
-            
+        ])
+        
+        # drivable head 
+        self.drivable_head.extend([
             # output conv
             Conv2d(
                 in_channels=new_space_dim,
                 out_channels=new_space_dim,
                 kernel_size=3,
                 stride=1,
-                padding="same",
+                padding=(1, 1),
                 groups=new_space_dim,
                 bias=bias,
             ),
@@ -208,8 +156,8 @@ class SegmentationHead(Module):
                 kernel_size=1,
                 bias=bias,
                 **factory_kwargs
-            ), 
-        )
+            ),  
+        ])
 
         self._reset_parameters()
     
