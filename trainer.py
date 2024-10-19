@@ -10,6 +10,7 @@ import os
 import gc
 import csv
 import glob
+from torchvision.transforms import Resize, InterpolationMode
 
 today = datetime.today()
 
@@ -87,10 +88,10 @@ class Trainer:
         
         # setup training configs
         self.num_epochs = num_epochs
-        self.out_path = os.path.join(out_path, self.model.alpha, formatted_today)
+        self.out_path = os.path.join(out_path, f"scale_{self.model.alpha}", formatted_today)
         self.device = device
         self.start_epoch = start_epoch
-        
+        self.resize = Resize((360, 640), interpolation=InterpolationMode.NEAREST)
         self.best_IoU = 0
         os.makedirs(self.out_path, exist_ok=True)
         
@@ -157,7 +158,7 @@ class Trainer:
             for data in self.train_loader:
                 # clear gradient
                 self.model.zero_grad(set_to_none=True)
-                
+                # self.optimizer.zero_grad()
                 # get data
                 image_name = data[0]
                 inputs = data[1].to(self.device)
@@ -169,12 +170,22 @@ class Trainer:
                 d_loss = self.criterion(d_outputs, d_targets)
                 l_loss = self.criterion(l_outputs, l_targets)
                 _loss = d_loss + l_loss
+                
+                # Resize for benchmark
+                d_outputs = self.resize(d_outputs)
+                d_targets = self.resize(d_targets)
 
+                l_outputs = self.resize(l_outputs)
+                l_targets = self.resize(l_targets)
+
+                # Convert to numpy
                 d_outputs = torch.argmax(d_outputs, dim=1).cpu().detach().numpy()
                 d_targets = torch.argmax(d_targets, dim=1).cpu().detach().numpy()
 
                 l_outputs = torch.argmax(l_outputs, dim=1).cpu().detach().numpy()
                 l_targets = torch.argmax(l_targets, dim=1).cpu().detach().numpy()
+
+                
 
                 self.d_metrics.addBatch(d_outputs, d_targets)
                 
@@ -268,12 +279,22 @@ class Trainer:
                 l_loss = self.criterion(l_outputs, l_targets)
                 _loss = d_loss + l_loss
 
+                # Resize for benchmark
+                d_outputs = self.resize(d_outputs)
+                d_targets = self.resize(d_targets)
+
+                l_outputs = self.resize(l_outputs)
+                l_targets = self.resize(l_targets)
+
+                # Convert to numpy
                 d_outputs = torch.argmax(d_outputs, dim=1).cpu().detach().numpy()
                 d_targets = torch.argmax(d_targets, dim=1).cpu().detach().numpy()
 
                 l_outputs = torch.argmax(l_outputs, dim=1).cpu().detach().numpy()
                 l_targets = torch.argmax(l_targets, dim=1).cpu().detach().numpy()
 
+                
+                
                 self.d_metrics.addBatch(d_outputs, d_targets)
                 
                 self.l_metrics.addBatch(l_outputs, l_targets)
