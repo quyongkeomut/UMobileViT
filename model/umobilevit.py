@@ -8,8 +8,6 @@ from model.encoder import UMobileViTEncoder
 from model.decoder import UMobileViTDecoder
 from model.seg_head import SegmentationHead
 
-
-
      
 class UMobileViT(Module):
     def __init__(
@@ -69,6 +67,7 @@ class UMobileViT(Module):
             out_channels=out_channels,
             **kwargs 
         )
+    
     
     def forward(self, input: Tensor) -> Tensor:
         encoder_outputs = self.encoder(input)
