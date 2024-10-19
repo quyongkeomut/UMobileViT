@@ -1,5 +1,4 @@
 from typing import Tuple, Callable
-from copy import deepcopy
 
 import torch
 from torch import Tensor
@@ -14,64 +13,17 @@ from torch.nn import (
 )
 import torch.nn.functional as F
 
-from torch.nn.modules.utils import _pair
-
 from torch.nn.init import zeros_
 
 from model.transfomer import (
     TransformerDecoderLayer,
     _get_initializer
 )
-from model.module import _UMobileViTLayer
+from model.module import (
+    _UMobileViTLayer,
+    _get_clones
+)
 
-
-
-def _get_clones(module, N):
-    # FIXME: copy.deepcopy() is not defined on nn.module
-    return ModuleList([deepcopy(module) for i in range(N)])
-
-
-def _get_expansion_block(
-    in_channels: int, 
-    expansion_factor: float,
-    norm_num_groups: int = 1,
-    bias: bool = True,
-    **factory_kwargs
-) -> Sequential:
-    expanded_channels: int = int(expansion_factor*in_channels)
-    block = Sequential(
-        Conv2d(
-            in_channels=in_channels,
-            out_channels=expanded_channels,
-            kernel_size=1,
-            bias=bias,
-            **factory_kwargs),
-        ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs),
-        Conv2d(
-            in_channels=expanded_channels,
-            out_channels=expanded_channels,
-            kernel_size=3,
-            padding="same",
-            groups=expanded_channels,
-            bias=bias,
-            **factory_kwargs),
-        ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs), 
-        Conv2d(
-            in_channels=expanded_channels,
-            out_channels=in_channels,
-            kernel_size=1,
-            bias=bias,
-            **factory_kwargs),
-    )
-    return block
 
 class UMobileViTDecoderLayer(_UMobileViTLayer):
     def __init__(self, **kwargs) -> None:
@@ -122,7 +74,6 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         ), f"Height and width of feature map must be divisible by patch sizes." 
         
         
-        
         # local block forward
         Z = self.local_block(input) # (N, C, H, W)
         
@@ -146,8 +97,7 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         
         # return normalized residual connection
         return self.out_norm(Z + input)
-    
-         
+             
 
 class DecoderOutLayer(_UMobileViTLayer):
     def __init__(self, **kwargs) -> None:
@@ -161,7 +111,7 @@ class DecoderOutLayer(_UMobileViTLayer):
         
         """
         
-        self.global_block = ModuleList([
+        self.global_block = Sequential(
             Conv2d(
                 in_channels=2*kwargs["in_channels"],
                 out_channels=kwargs["in_channels"],
@@ -179,7 +129,7 @@ class DecoderOutLayer(_UMobileViTLayer):
                 in_channels=kwargs["in_channels"],
                 out_channels=kwargs["in_channels"],
                 kernel_size=3,
-                padding="same",
+                padding=(1, 1),
                 groups=kwargs["in_channels"],
                 bias=kwargs["bias"],
                 device=kwargs["device"],
@@ -190,7 +140,7 @@ class DecoderOutLayer(_UMobileViTLayer):
                 num_channels=kwargs["in_channels"],
                 device=kwargs["device"],
                 dtype=kwargs["dtype"])
-        ])
+        )
         
     
     def _reset_parameters(self) -> None:
@@ -240,18 +190,46 @@ class DecoderOutLayer(_UMobileViTLayer):
         
         # global block forward
         Z = torch.cat([Z, memory], dim=1)
-        Z = self.global_block[0](Z)
-        for layer in self.global_block[1:]:
-            Z = layer(Z)
+        Z = self.global_block(Z)    
         
         # expansion block forward
         Z = self.expansion_block(Z)
         
         # return normalized residual connection
-        return self.out_norm(Z + input)
+        return self.out_norm(Z + input)    
+
+
+def _get_upsample_block(initializer, **kwargs) -> Sequential:
+    block = Sequential(
+        Upsample(
+            scale_factor=kwargs["scale_factor"],
+            mode=kwargs["mode"]
+        ),
+        Conv2d(
+            in_channels=kwargs["in_channels"],
+            out_channels=kwargs["out_channels"],
+            kernel_size=kwargs["kernel_size"],
+            stride=kwargs["stride"],
+            padding=kwargs["padding"],
+            groups=kwargs["groups"],
+            bias=kwargs["bias"],
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        ),
+        ReLU(),
+        GroupNorm(
+            num_groups=kwargs["norm_num_groups"],
+            num_channels=kwargs["out_channels"],
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        )
+    )
     
-
-
+    initializer(block[1].weight)
+    if block[1].bias is not None:
+        zeros_(block[1].bias)
+        
+    return block
 
 
 class UMobileViTDecoder(Module):
@@ -291,6 +269,8 @@ class UMobileViTDecoder(Module):
         ), f"num_transformer_block must be greater than zero, got num_transformer_block={num_transformer_block}"
         
         super().__init__()
+        self.initializer = _get_initializer(initializer)
+        
         factory_kwargs = {"device": device, "dtype": dtype}
         decoder_layer_kwargs = {
             "in_channels": d_model,
@@ -306,24 +286,48 @@ class UMobileViTDecoder(Module):
             "scale_factor": 2,
             "mode": "nearest"
         }
-        self.initializer = _get_initializer(initializer)
+        upsampling_conv_kwargs = {
+            "in_channels": d_model,
+            "out_channels": d_model,
+            "kernel_size": 3,
+            "stride": 1,
+            "padding": (1, 1),
+            "groups": d_model,
+            "norm_num_groups": norm_num_groups,
+            "bias": bias,
+        }
+        decoder_layer = UMobileViTDecoderLayer(**decoder_layer_kwargs, **factory_kwargs)
         
         # first stage block - upsample factor = 2
         stage_1 = ModuleList([
-            Upsample(**upsampling_kwargs),
-            UMobileViTDecoderLayer(**decoder_layer_kwargs, **factory_kwargs),
-            UMobileViTDecoderLayer(**decoder_layer_kwargs, **factory_kwargs),
+            _get_upsample_block(
+                self.initializer,
+                **upsampling_kwargs, 
+                **upsampling_conv_kwargs,
+                **factory_kwargs
+            ),
+            *_get_clones(decoder_layer, 2),
         ])
         
         # second stage block - upsample factor = 4
         stage_2 = ModuleList([
-            Upsample(**upsampling_kwargs),
-            UMobileViTDecoderLayer(**decoder_layer_kwargs, **factory_kwargs),
+            _get_upsample_block(
+                self.initializer,
+                **upsampling_kwargs, 
+                **upsampling_conv_kwargs,
+                **factory_kwargs
+            ),
+            *_get_clones(decoder_layer, 2),
         ])
         
         # out block - upsample factor = 8
         out_block = ModuleList([
-            Upsample(**upsampling_kwargs),
+            _get_upsample_block(
+                self.initializer,
+                **upsampling_kwargs, 
+                **upsampling_conv_kwargs,
+                **factory_kwargs
+            ),
             DecoderOutLayer(**decoder_layer_kwargs, **factory_kwargs)
         ])
         
