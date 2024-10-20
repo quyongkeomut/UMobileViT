@@ -210,9 +210,9 @@ class SegmentationMetric(object):
         acc = np.diag(self.confusionMatrix).sum() /  self.confusionMatrix.sum()
         return acc
         
-    def lineAccuracy(self):
-        Acc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=1) + self.eps)
-        return Acc[1]
+    # def lineAccuracy(self):
+    #     Acc = np.diag(self.confusionMatrix) / (self.confusionMatrix.sum(axis=1) + self.eps)
+    #     return Acc[1]
 
     def classPixelAccuracy(self):
         # return each category pixel accuracy(A more accurate way to call it precision)
@@ -242,6 +242,25 @@ class SegmentationMetric(object):
         IoU[np.isnan(IoU)] = 0
         return IoU[1]
 
+    def lineAccuracy(self):
+        # Extract TP, TN, FP, FN from confusion matrix
+        # print(self.confusionMatrix)
+        TP = self.confusionMatrix[1, 1]
+        TN = self.confusionMatrix[0, 0]
+        FP = self.confusionMatrix[0, 1]
+        FN = self.confusionMatrix[1, 0]
+        
+        # Calculate Sensitivity
+        sensitivity = TP / (TP + FN) if (TP + FN) != 0 else 0
+        
+        # Calculate Specificity
+        specificity = TN / (TN + FP) if (TN + FP) != 0 else 0
+        
+        # Calculate Line Accuracy
+        line_accuracy = (sensitivity + specificity) / 2
+        
+        return line_accuracy
+
     def genConfusionMatrix(self, imgPredict, imgLabel):
         # remove classes from unlabeled pixels in gt image and predict
         # print(imgLabel.shape)
@@ -267,9 +286,6 @@ class SegmentationMetric(object):
 
     def reset(self):
         self.confusionMatrix = np.zeros((self.numClass, self.numClass))
-
-
-
 
 
 # Plots ----------------------------------------------------------------------------------------------------------------

@@ -144,8 +144,8 @@ class Trainer:
             "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
             }, save_path)
         
-        train_csvfile.close()
-        val_csvfile.close()
+        # train_csvfile.close()
+        # val_csvfile.close()
         
 
     def train(self, epoch):
@@ -167,10 +167,8 @@ class Trainer:
                 
                 # compute output, loss and metrics
                 d_outputs, l_outputs = self.model(inputs)
-                d_loss = self.criterion(d_outputs, d_targets)
-                l_loss = self.criterion(l_outputs, l_targets)
-                _loss = d_loss + l_loss
-                
+                _loss = self.criterion(d_outputs, d_targets, l_outputs, l_targets)
+
                 # Resize for benchmark
                 d_outputs = self.resize(d_outputs)
                 d_targets = self.resize(d_targets)
@@ -198,7 +196,7 @@ class Trainer:
 
                 l_acc = self.l_metrics.lineAccuracy()
                 l_IOU = self.l_metrics.IntersectionOverUnion()
-                l_mIOU = self.d_metrics.meanIntersectionOverUnion()
+                l_mIOU = self.l_metrics.meanIntersectionOverUnion()
 
                 metrics = {
                     "d_mIOU" : d_mIOU,
@@ -220,7 +218,8 @@ class Trainer:
                 pbar.update(1)  # Increase the progress bar
 
                 # save this step for backup...
-                save_path = os.path.join(self.out_path, "last.pt")
+                save_path = os.path.join(self.out_path, "last.pth")
+
                 torch.save({
                     "epoch": epoch,
                     "model_state_dict": self.model.state_dict(),
@@ -240,8 +239,10 @@ class Trainer:
         print()
         
         # also save model state dict along with optimizer's and scheduler's at the end of every epoch
+        os.makedirs(os.path.join(self.out_path, "epochs"), exist_ok=True)
         save_path = os.path.join(self.out_path, "epochs", f"epoch_{epoch+1}.pth")
-        os.makedirs(save_path, exist_ok=True)
+
+        # os.makedirs(save_path, exist_ok=True)
         torch.save({
             "epoch": epoch,
             "model_state_dict": self.model.state_dict(),
@@ -275,9 +276,7 @@ class Trainer:
 
                 # compute output, loss and metrics
                 d_outputs, l_outputs = self.model(inputs)
-                d_loss = self.criterion(d_outputs, d_targets)
-                l_loss = self.criterion(l_outputs, l_targets)
-                _loss = d_loss + l_loss
+                _loss = self.criterion(d_outputs, d_targets, l_outputs, l_targets)
 
                 # Resize for benchmark
                 d_outputs = self.resize(d_outputs)
@@ -337,7 +336,7 @@ class Trainer:
             for file_path in files_to_delete:
                 os.remove(file_path)
 
-            save_path = os.path.join(self.out_path, f"best_IoU_{current_IoU}_epoch_{epoch + 1}.pth")
+            save_path = os.path.join(self.out_path, f"best_IoU_{round(current_IoU,4)}_epoch_{epoch + 1}.pth")
             torch.save({
                 "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),

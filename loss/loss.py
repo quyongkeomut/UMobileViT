@@ -121,8 +121,8 @@ class TverskyLoss(nn.Module):
 class TotalLoss(nn.Module):
     def __init__(
         self,
-        alpha: float = 1.,
-        beta: float = 1.
+        alpha: float = 0.5,
+        beta: float = 1.5
     ) -> None:
         """
 
@@ -135,11 +135,12 @@ class TotalLoss(nn.Module):
         self.alpha = alpha
         self.beta = beta
         self.focal_loss = FocalLoss()
-        self.tversky_loss = TverskyLoss()
+        self.d_tversky_loss = TverskyLoss(alpha=0.7, beta=0.3)
+        self.l_tversky_loss = TverskyLoss(alpha=0.9, beta=0.1)
         # self.running_loss = 0
 
 
-    def forward(self, inputs, targets):
+    def forward(self, d_preds, d_targets, l_preds, l_targets):
         """_summary_
 
         Args:
@@ -149,11 +150,16 @@ class TotalLoss(nn.Module):
         Returns:
             float: total loss
         """
-        targets = torch.softmax(targets, dim=1)
-        loss_focal = self.focal_loss(inputs, targets)
-        loss_tversky = self.tversky_loss(inputs, targets)
+        d_preds = torch.softmax(d_preds, dim=1)
+        l_preds = torch.softmax(l_preds, dim=1)
 
-        total_loss = self.alpha*loss_focal + self.beta*loss_tversky
+        d_loss_focal = self.focal_loss(d_preds, d_targets)
+        l_loss_focal = self.focal_loss(l_preds, l_targets)
+
+        d_loss_tversky = self.d_tversky_loss(d_preds, d_targets)
+        l_loss_tversky = self.d_tversky_loss(d_preds, l_targets)
+
+        total_loss = self.alpha*(d_loss_focal + d_loss_tversky) + self.beta*(l_loss_focal + l_loss_tversky)
 
         return total_loss
 
