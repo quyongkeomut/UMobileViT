@@ -13,6 +13,7 @@ from thop import profile, clever_format
 # from ptflops import get_model_complexity_info
 # from torch.profiler import profile, record_function, ProfilerActivity
 from experiments_setup.bdd.configs.bdd100k_backbone_config import BACKBONE_CONFIGS
+import time
 
 if __name__ == "__main__":
     model = UMobileViT(alpha=0.25, 
@@ -22,16 +23,24 @@ if __name__ == "__main__":
                        **BACKBONE_CONFIGS
                        )
     model = model.to("cuda")
+    check_point = torch.load(r"weights\scale_0.25\2024_10_20_13_42\last.pth", weights_only=True)
+        
+    model.load_state_dict(check_point["model_state_dict"])
+    # model.load_state_dict(torch.load(r"test_model.pth", weights_only=True))
     img_size = (3, 320, 640)
     input = torch.randn(size=(1, *img_size))
     input_shape = (1, *img_size)
     
     model_inputs = (input.to("cuda"), )
 
-    output = model(input.to("cuda"))
-    print(output[0], output[1])
-    
-    
+    with torch.inference_mode():
+        while True:
+            t1 = time.time()
+            
+            output = model(input.to("cuda"))
+        
+            print("FPS:", 1/(time.time() - t1))
+        
     # fvcore
     # flops = fnn.FlopCountAnalysis(model, model_inputs)
     # print(fnn.flop_count_table(flops, max_depth=3))
@@ -44,7 +53,7 @@ if __name__ == "__main__":
     # pytorch op counter - thop
     macs, params = profile(model, inputs=model_inputs)
     macs, params = clever_format([macs*2, params], "%.3f")
-    print(macs)
+    print(macs, params)
     
     
     # flops counter - ptflops

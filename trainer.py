@@ -158,7 +158,7 @@ class Trainer:
             for data in self.train_loader:
                 # clear gradient
                 self.model.zero_grad(set_to_none=True)
-                # self.optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 # get data
                 image_name = data[0]
                 inputs = data[1].to(self.device)
@@ -167,7 +167,7 @@ class Trainer:
                 
                 # compute output, loss and metrics
                 d_outputs, l_outputs = self.model(inputs)
-                _loss = self.criterion(d_outputs, d_targets, l_outputs, l_targets)
+                _loss = self.criterion((d_outputs, l_outputs), (d_targets, l_targets))
 
                 # Resize for benchmark
                 d_outputs = self.resize(d_outputs)
@@ -221,11 +221,11 @@ class Trainer:
                 save_path = os.path.join(self.out_path, "last.pth")
 
                 torch.save({
-                    "epoch": epoch,
+                    # "epoch": epoch,
                     "model_state_dict": self.model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict(),
-                    "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
-                    "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
+                    # "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
+                    # "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
                 }, save_path)
                 
                 # clear cache
@@ -244,13 +244,13 @@ class Trainer:
 
         # os.makedirs(save_path, exist_ok=True)
         torch.save({
-            "epoch": epoch,
+            # "epoch": epoch,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
-            "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
-            "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
-            "loss": loss,
-            "metrics": metrics
+            # "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
+            # "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
+            # "loss": loss,
+            # "metrics": metrics
             }, save_path)
 
         # reset metrics tracker after every training epoch
@@ -276,7 +276,7 @@ class Trainer:
 
                 # compute output, loss and metrics
                 d_outputs, l_outputs = self.model(inputs)
-                _loss = self.criterion(d_outputs, d_targets, l_outputs, l_targets)
+                _loss = self.criterion((d_outputs, l_outputs), (d_targets, l_targets))
 
                 # Resize for benchmark
                 d_outputs = self.resize(d_outputs)
@@ -338,13 +338,13 @@ class Trainer:
 
             save_path = os.path.join(self.out_path, f"best_IoU_{round(current_IoU,4)}_epoch_{epoch + 1}.pth")
             torch.save({
-                "epoch": epoch,
+                # "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
-                "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
-                "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
-                "loss": loss,
-                "metrics": metrics
+                # "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
+                # "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
+                # "loss": loss,
+                # "metrics": metrics
                 }, save_path)
             
             self.best_IoU = current_IoU

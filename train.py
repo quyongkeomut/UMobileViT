@@ -98,26 +98,30 @@ if __name__ == "__main__":
         check_point = torch.load(check_point, weights_only=True)
         
         model.load_state_dict(check_point["model_state_dict"])
-        optimizer.load_state_dict(check_point["optimizer_state_dict"])
+        # optimizer.load_state_dict(check_point["optimizer_state_dict"])
         
-        lr_scheduler_increase = LinearLR(
-            optimizer,
-            start_factor=1/5,
-            total_iters=5
-        )
-        lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
+        # lr_scheduler_increase = LinearLR(
+        #     optimizer,
+        #     start_factor=1/5,
+        #     total_iters=5
+        # )
+        # lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
         
-        lr_scheduler_cosine = CosineAnnealingLR(
-            optimizer, 
-            T_max=num_epochs-5,
-            eta_min=1e-4
-        )
-        lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
+        # lr_scheduler_cosine = CosineAnnealingLR(
+        #     optimizer, 
+        #     T_max=num_epochs-5,
+        #     eta_min=1e-4
+        # )
+        # lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
         
-        last_epoch = check_point["epoch"]
+        # last_epoch = check_point["epoch"]
+        last_epoch = 0
+        lr_scheduler_increase = None
+        lr_scheduler_cosine = None
     else:
         last_epoch = 0
-        lr_scheduler_increase = lr_scheduler_cosine = None
+        lr_scheduler_increase = None
+        lr_scheduler_cosine = None
         
     model = model.to(device)    
 
