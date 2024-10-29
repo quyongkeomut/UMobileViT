@@ -41,7 +41,8 @@ def _get_upsample_block(
             padding=(1, 1),
             groups=in_channels,
             bias=bias,
-            
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
         ),
         ReLU(),
         GroupNorm(
@@ -57,7 +58,54 @@ def _get_upsample_block(
         zeros_(block[1].bias)
     
     return block
+
+
+def _get_upsample_head(
+    in_channels: int,
+    new_space_dim: int,
+    bias: bool,
+    norm_num_groups: int,
+    initializer,
+    **kwargs,
+) -> Sequential:
     
+    
+    factory_kwargs = {"device": kwargs["device"], "dtype": kwargs["dtype"]}
+    upsampling_kwargs = {"scale_factor": kwargs["scale_factor"], "mode": kwargs["mode"]}
+    
+    # init the upsample part, which share the same structure at each head
+    upsample_head = Sequential(
+        # project to new space
+        Conv2d(
+            in_channels=in_channels,
+            out_channels=new_space_dim,
+            kernel_size=1,
+            bias=bias,
+            **factory_kwargs
+        ),
+        ReLU(),
+        GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=new_space_dim,
+            **factory_kwargs
+        ),
+    )
+    
+    # upsize to 8 times 
+    upsample_head.extend(
+        _get_clones(
+            _get_upsample_block, 
+            N=3,
+            in_channels=new_space_dim,
+            bias=bias,
+            norm_num_groups=norm_num_groups,
+            initializer=initializer,
+            **upsampling_kwargs, 
+            **factory_kwargs
+        )
+    )
+    return upsample_head
+
 
 class SegmentationHead(Module):
     def __init__(self, 
@@ -79,41 +127,27 @@ class SegmentationHead(Module):
         initializer = _get_initializer(initializer)
         self.initializer = initializer
         in_channels: int = int(alpha*d_model)
-        out_channels = _pair(out_channels)
         new_space_dim = in_channels
+        out_channels = _pair(out_channels)
         
-        # init the upsample part, which share the same structure at each head
-        upsample_head = Sequential(
-            # project to new space
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=new_space_dim,
-                kernel_size=1,
-                bias=bias,
-                **factory_kwargs
-            ),
-            ReLU(),
-            GroupNorm(
-                num_groups=norm_num_groups,
-                num_channels=new_space_dim,
-                **factory_kwargs
-            ),
+        self.lane_head = _get_upsample_head(
+            in_channels=in_channels,
+            new_space_dim=new_space_dim,
+            bias=bias,
+            norm_num_groups=norm_num_groups,
+            initializer=self.initializer,
+            **factory_kwargs,
+            **upsampling_kwargs
         )
-        # upsize to 8 times 
-        upsample_head.extend(
-            _get_clones(
-                _get_upsample_block(
-                    in_channels=new_space_dim,
-                    bias=bias,
-                    norm_num_groups=norm_num_groups,
-                    initializer=self.initializer,
-                    **upsampling_kwargs, 
-                    **factory_kwargs
-                ) 
-            , 3)
+        self.drivable_head = _get_upsample_head(
+            in_channels=in_channels,
+            new_space_dim=new_space_dim,
+            bias=bias,
+            norm_num_groups=norm_num_groups,
+            initializer=self.initializer,
+            **factory_kwargs,
+            **upsampling_kwargs
         )
-        
-        self.lane_head, self.drivable_head = _get_clones(upsample_head, 2)
         
         # lane head
         self.lane_head.extend([
@@ -126,6 +160,7 @@ class SegmentationHead(Module):
                 padding=(1, 1),
                 groups=new_space_dim,
                 bias=bias,
+                **factory_kwargs,
             ),
             ReLU(),
             Conv2d(
@@ -148,6 +183,7 @@ class SegmentationHead(Module):
                 padding=(1, 1),
                 groups=new_space_dim,
                 bias=bias,
+                **factory_kwargs
             ),
             ReLU(),
             Conv2d(
@@ -176,9 +212,9 @@ class SegmentationHead(Module):
                     zeros_(layer.bias)
                 
 
-    def forward(self, inputs: Tensor) -> Tuple[Tensor]:
-        line_mask = self.lane_head.forward(inputs)
-        drivable_mask = self.drivable_head.forward(inputs)
+    def forward(self, input: Tensor) -> Tuple[Tensor]:
+        line_mask = self.lane_head.forward(input)
+        drivable_mask = self.drivable_head.forward(input)
         return (drivable_mask, line_mask)
 
 
