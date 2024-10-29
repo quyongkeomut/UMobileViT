@@ -21,7 +21,88 @@ CONV_KWARGS = {
     "padding": _pair(0),
     "dilation": _pair(1),
     "groups": 1,
-}
+} 
+
+
+def unfold_custom(
+    input: Tensor, 
+    kernel_size: int | Tuple[int, int],
+) -> Tensor:
+    r"""
+    Custom funcional unfold operation
+
+    Args:
+        input (Tensor): Tensor to be unfolded
+        kernel_size (int | Tuple[int, int]): Kernel size of unfold operation
+
+    Returns:
+        Tensor: unfolded version of input
+        
+    Shape:
+        inputs:
+            input: (N, C, H, W)
+            kernel_size: (2, ) or None
+        output: (N, C, P, S), where P is the area of kernel and S is the number of
+            such kernels in feature maps.
+    """
+    # check integrity
+    kernel_size = _pair(kernel_size)
+    assert (
+        input.dim() == 4
+    ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+    N, C, H, W = input.shape
+    assert (
+        H % kernel_size[0] == 0 and W % kernel_size[1] == 0
+    ), f"Height and width of feature map must be divisible by patch sizes, got input_size is {H, W}"
+
+    h, w = kernel_size[0], kernel_size[1]
+    lh, lw = H//kernel_size[0], W//kernel_size[1]
+    S = lh * lw
+    P = kernel_size[0] * kernel_size[1]
+        
+    Z = input.view(N, C, lh, h, lw, w).contiguous() # (N, C, lh, h, lw, w)
+    Z = Z.transpose(-1, 2).contiguous() # (N, C, w, h, lw, lh)
+    Z = Z.view(N, C, P, S).contiguous() # (N, C, P, S)
+    return Z
+
+
+def fold_custom(
+    input: Tensor,
+    output_size: Tuple[int, int],
+    kernel_size: int | Tuple[int, int],
+) -> Tensor:
+    r"""
+    Custom funcional fold operation
+
+    Args:
+        input (Tensor): Tensor to be folded
+        kernel_size (int | Tuple[int, int]): Kernel size of fold operation
+
+    Returns:
+        Tensor: folded version of input
+        
+    Shape:
+        inputs:
+            input: (N, C, P, S)
+            kernel_size: (2, ) or None
+        output: (N, C, H, W)
+    """
+    # check integrity
+    kernel_size = _pair(kernel_size)
+    assert (
+        input.dim() == 4
+    ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+    N, C, P, S = input.shape
+    H, W = output_size
+    
+    h, w = kernel_size[0], kernel_size[1]
+    lh, lw = H//h, W//w
+    
+    Z = input.view(N, C, w, h, lw, lh).contiguous() # (N, C, w, h, lw, lh)
+    Z = Z.transpose(-1, 2).contiguous() # (N, C, lh, h, lw, w)
+    Z = Z.view(N, C, H, W).contiguous()
+    
+    return Z
 
 
 def _separable_attn_shape_check(
@@ -84,24 +165,24 @@ def _in_projection_packed(
         if q is k:
             # self-attention
             proj = conv2d(q, w, b, **CONV_KWARGS) # (N, 1 + C*2, ...)
-            return proj.split([1, C, C], dim=1) # q, k, v order
+            return proj.tensor_split([1, C+1], dim=1) # q, k, v order
         else:
             # encoder-decoder attention
-            w_q, w_kv = w.split([1, C * 2])
+            w_q, w_kv = w.tensor_split([1, ])
             if b is None:
                 b_q = b_kv = None
             else:
-                b_q, b_kv = b.split([1, C * 2])
+                b_q, b_kv = b.tensor_split([1, ])
             q_proj = conv2d(q, w_q, b_q, **CONV_KWARGS) # (N, 1, ...)
             kv_proj = conv2d(k, w_kv, b_kv, **CONV_KWARGS) # (N, C*2, ...)
-            k_proj, v_proj = kv_proj.split([C, C], dim=1) # (N, C, ...)
+            k_proj, v_proj = kv_proj.tensor_split([C, ], dim=1) # (N, C, ...)
             return q_proj, k_proj, v_proj
     else:
-        w_q, w_k, w_v = w.split([1, C, C])
+        w_q, w_k, w_v = w.tensor_split([1, C+1])
         if b is None:
             b_q = b_k = b_v = None
         else:
-            b_q, b_k, b_v = b.split([1, C, C])
+            b_q, b_k, b_v = b.split([1, C+1])
         return conv2d(q, w_q, b_q, **CONV_KWARGS), conv2d(k, w_k, b_k, **CONV_KWARGS), conv2d(v, w_v, b_v, **CONV_KWARGS)
     
 
