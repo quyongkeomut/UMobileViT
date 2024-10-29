@@ -23,6 +23,10 @@ from model.module import (
     _UMobileViTLayer,
     _get_clones
 )
+from utils.functional import (
+    unfold_custom,
+    fold_custom
+)
 
 
 class UMobileViTDecoderLayer(_UMobileViTLayer):
@@ -68,9 +72,9 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
             memory.dim() == 4
         ), f"Encoder block expected memory have 4 dimentions, got {memory.dim()}." 
         
-        N, C, *output_size = input.shape
+        N, C, *input_size = input.shape
         assert (
-            output_size[0] % self.fold_params["kernel_size"][0] == 0 and output_size[1] % self.fold_params["kernel_size"][1] == 0
+            input_size[0] % self.fold_params["kernel_size"][0] == 0 and input_size[1] % self.fold_params["kernel_size"][1] == 0
         ), f"Height and width of feature map must be divisible by patch sizes." 
         
         
@@ -81,15 +85,21 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         # global block forward
         
         # unfolding
-        Z = F.unfold(Z, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
-        mem = F.unfold(memory, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
+        # Z = F.unfold(Z, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
+        # Z = Z.contiguous()
+        # mem = F.unfold(memory, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
+        # mem = mem.contiguous()
+        
+        Z = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
+        mem = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
         
         for block in self.global_block: 
             Z = block(Z, mem)
             
         # folding
-        Z = Z.view(N, C*self.patch_area, -1) # (N, C*P, S)
-        Z = F.fold(Z, output_size=output_size, **self.fold_params) # (N, C, H, W)
+        # Z = Z.view(N, C*self.patch_area, -1).contiguous() # (N, C*P, S)
+        # Z = F.fold(Z, output_size=output_size, **self.fold_params) #.contiguous() # (N, C, H, W)
+        Z = fold_custom(Z, output_size=input_size, kernel_size=self.fold_params["kernel_size"])
         
         
         # expansion block forward
@@ -135,11 +145,6 @@ class DecoderOutLayer(_UMobileViTLayer):
                 device=kwargs["device"],
                 dtype=kwargs["dtype"]),
             ReLU(),
-            GroupNorm(
-                num_groups=kwargs["norm_num_groups"],
-                num_channels=kwargs["in_channels"],
-                device=kwargs["device"],
-                dtype=kwargs["dtype"])
         )
         
     
@@ -179,7 +184,7 @@ class DecoderOutLayer(_UMobileViTLayer):
             input.dim() == 4
         ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
         assert (
-            memory.dim() == 4
+            memory.dim() == 4 
         ), f"Encoder block expected memory have 4 dimentions, got {memory.dim()}."
         assert (
             input.size(1) == memory.size(1)
@@ -296,7 +301,7 @@ class UMobileViTDecoder(Module):
             "norm_num_groups": norm_num_groups,
             "bias": bias,
         }
-        decoder_layer = UMobileViTDecoderLayer(**decoder_layer_kwargs, **factory_kwargs)
+        decoder_layer = UMobileViTDecoderLayer
         
         # first stage block - upsample factor = 2
         stage_1 = ModuleList([
@@ -306,7 +311,12 @@ class UMobileViTDecoder(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            *_get_clones(decoder_layer, 2),
+            *_get_clones(
+                decoder_layer, 
+                N=2,
+                **decoder_layer_kwargs, 
+                **factory_kwargs
+            ),
         ])
         
         # second stage block - upsample factor = 4
@@ -317,7 +327,12 @@ class UMobileViTDecoder(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            *_get_clones(decoder_layer, 2),
+            *_get_clones(
+                decoder_layer, 
+                N=2,
+                **decoder_layer_kwargs, 
+                **factory_kwargs
+            ),
         ])
         
         # out block - upsample factor = 8
