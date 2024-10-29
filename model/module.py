@@ -1,4 +1,9 @@
-from typing import Tuple, Callable
+from typing import (
+    Tuple, 
+    Callable, 
+    Any,
+    List
+)
 from math import prod
 from copy import deepcopy
 
@@ -24,8 +29,12 @@ from model.transfomer import (
     _get_initializer
 )
 
-def _get_clones(module, N):
-    return [deepcopy(module) for i in range(N)]
+def _get_clones(
+    module_class: Any, 
+    N: int,
+    **kwargs
+) -> List[Any]:
+    return [module_class(**kwargs) for i in range(N)]
 
 
 def _get_expansion_block(
@@ -135,11 +144,15 @@ class _UMobileViTLayer(Module):
             "initializer": initializer
         }
         if transformer_block is not None:
-            transformer_block = transformer_block(**tranformer_block_kwargs, **factory_kwargs)
-            global_block = _get_clones(transformer_block, num_transformer_block)
-            if isinstance(transformer_block, TransformerEncoderLayer):
+            global_block = _get_clones(
+                transformer_block, 
+                N=num_transformer_block,
+                **tranformer_block_kwargs, 
+                **factory_kwargs
+            )
+            if issubclass(transformer_block, TransformerEncoderLayer):
                 self.global_block = Sequential(*global_block)
-            elif isinstance(transformer_block, TransformerDecoderLayer):
+            elif issubclass(transformer_block, TransformerDecoderLayer):
                 self.global_block = ModuleList(global_block)
         else:
             self.global_block = ModuleList([])
