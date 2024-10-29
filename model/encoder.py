@@ -22,6 +22,10 @@ from model.module import (
     _UMobileViTLayer,
     _get_clones
 )
+from utils.functional import (
+    unfold_custom,
+    fold_custom
+)
 
 
 class UMobileViTEncoderLayer(_UMobileViTLayer):
@@ -53,10 +57,7 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         assert (
             input.dim() == 4
         ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
-        N, C, *output_size = input.shape
-        assert (
-            output_size[0] % self.fold_params["kernel_size"][0] == 0 and output_size[1] % self.fold_params["kernel_size"][1] == 0
-        ), f"Height and width of feature map must be divisible by patch sizes, output_size is {output_size}" 
+        N, C, *input_size = input.shape
         
         # local block forward
         Z = self.local_block(input) # (N, C, H, W)
@@ -65,12 +66,12 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         # global block forward
         
         # unfolding
-        Z = F.unfold(Z, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
-        Z = self.global_block(Z)
-        # folding
-        Z = Z.view(N, C*self.patch_area, -1) # (N, C*P, S)
-        Z = F.fold(Z, output_size=output_size, **self.fold_params) # (N, C, H, W)
+        Z = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
         
+        Z = self.global_block(Z)
+        
+        # folding
+        Z = fold_custom(Z, output_size=input_size, kernel_size=self.fold_params["kernel_size"])
         
         # expansion block forward
         Z = self.expansion_block(Z)
@@ -212,7 +213,7 @@ class UMobileViTEncoder(Module):
             "norm_num_groups": norm_num_groups,
             "bias": bias,
         }
-        encoder_layer = UMobileViTEncoderLayer(**encoder_layer_kwargs,**factory_kwargs)
+        encoder_layer = UMobileViTEncoderLayer
         
         # first stage block - output stride = 16
         stage_1 = Sequential(
@@ -221,7 +222,12 @@ class UMobileViTEncoder(Module):
                 **downsampling_block_kwargs, 
                 **factory_kwargs
             ),
-            *_get_clones(encoder_layer, 2),
+            *_get_clones(
+                encoder_layer, 
+                N=2,
+                **encoder_layer_kwargs,
+                **factory_kwargs
+            ),
         )
         
         # second stage block - output stride = 32
@@ -231,20 +237,30 @@ class UMobileViTEncoder(Module):
                 **downsampling_block_kwargs, 
                 **factory_kwargs
             ),
-            *_get_clones(encoder_layer, 2),
+            *_get_clones(
+                encoder_layer, 
+                N=2,
+                **encoder_layer_kwargs,
+                **factory_kwargs
+            ),
         )
         
         # third stage block - output stride = 64
         # at this stage, patch size would be 1
         encoder_layer_kwargs["patch_size"] = (1, 1)
-        encoder_layer = UMobileViTEncoderLayer(**encoder_layer_kwargs,**factory_kwargs)
+        encoder_layer = UMobileViTEncoderLayer
         stage_3 = Sequential(
             _get_downsample_block(
                 self.initializer, 
                 **downsampling_block_kwargs, 
                 **factory_kwargs
             ),
-            *_get_clones(encoder_layer, 3),
+            *_get_clones(
+                encoder_layer, 
+                N=2,
+                **encoder_layer_kwargs,
+                **factory_kwargs
+            ),
         )
         
         self.layers = ModuleList([
