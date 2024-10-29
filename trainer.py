@@ -10,7 +10,7 @@ import os
 import gc
 import csv
 import glob
-from torchvision.transforms import Resize, InterpolationMode
+from torchvision.transforms.v2 import Resize, InterpolationMode
 
 today = datetime.today()
 
