@@ -365,8 +365,9 @@ class UMobileViTDecoder(Module):
         Returns:
             Tensor: output of decoder
         """
-        if len(inputs) - 1 != len(self.layers):
-            raise ValueError(f"number of inputs is expected to be equal to {len(self.layers) + 1}, got {len(inputs)}")
+        assert (
+            len(inputs) - 1 == len(self.layers)
+        ), f"number of inputs is expected to be equal to {len(self.layers) + 1}, got {len(inputs)}"
         
         Z = inputs[0]
         for i, memory in enumerate(inputs[1:]): 
