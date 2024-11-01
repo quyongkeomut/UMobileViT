@@ -171,13 +171,13 @@ class UMobileViTEncoder(Module):
             ReLU(),
             Conv2d(
                 in_channels=16,
-                out_channels=32,
+                out_channels=16,
                 **stem_conv_kwargs,
                 **factory_kwargs
             ),
             ReLU(),
             Conv2d(
-                in_channels=32,
+                in_channels=16,
                 out_channels=d_model,
                 **stem_conv_kwargs,
                 **factory_kwargs
