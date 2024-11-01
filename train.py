@@ -37,7 +37,15 @@ if __name__ == "__main__":
     import os
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    os.environ["NVIDIA_TF32_OVERRIDE"] = "1"
+    os.environ["TORCH_LOGS"] = "+dynamo"
+    os.environ["TORCHDYNAMO_VERBOSE"] = "1"
+    os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "0"
 
+    # The flags below controls whether to allow TF32 on cuda and cuDNN
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    
     import warnings
     warnings.filterwarnings("ignore")
     
@@ -123,7 +131,8 @@ if __name__ == "__main__":
         lr_scheduler_increase = None
         lr_scheduler_cosine = None
         
-    model = model.to(device)    
+    model = model.to(device)
+    model.compile(fullgraph=True, backend="cudagraphs")    
 
     criterion = TotalLoss()
 
