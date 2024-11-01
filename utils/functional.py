@@ -182,7 +182,7 @@ def _in_projection_packed(
         if b is None:
             b_q = b_k = b_v = None
         else:
-            b_q, b_k, b_v = b.split([1, C+1])
+            b_q, b_k, b_v = b.tensor_split([1, C+1])
         return conv2d(q, w_q, b_q, **CONV_KWARGS), conv2d(k, w_k, b_k, **CONV_KWARGS), conv2d(v, w_v, b_v, **CONV_KWARGS)
     
 
@@ -383,7 +383,7 @@ def separable_attention_forward(
         if in_proj_bias is None:
             b_q = b_k = b_v = None
         else:
-            b_q, b_k, b_v = in_proj_bias.split([1, C, C])
+            b_q, b_k, b_v = in_proj_bias.tensor_split([1, C+1])
         q, k, v = _in_projection(
             query,
             key,
