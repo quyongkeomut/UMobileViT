@@ -4,8 +4,6 @@ from typing import (
     Any,
     List
 )
-from math import prod
-from copy import deepcopy
 
 import torch
 from torch import Tensor
@@ -15,6 +13,7 @@ from torch.nn import (
     Sequential,
     ReLU,
     Conv2d,
+    Dropout,
     GroupNorm,
     Identity
 )
@@ -29,6 +28,7 @@ from model.transfomer import (
     _get_initializer
 )
 
+
 def _get_clones(
     module_class: Any, 
     N: int,
@@ -37,10 +37,45 @@ def _get_clones(
     return [module_class(**kwargs) for i in range(N)]
 
 
+def _get_local_block(
+    in_channels: int, 
+    norm_num_groups: int = 1,
+    bias: bool = True,
+    **factory_kwargs
+) -> Sequential:
+    block = Sequential(
+        Conv2d(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=3,
+            padding=(1, 1),
+            groups=in_channels,
+            bias=bias,
+            **factory_kwargs
+        ),
+        ReLU(),
+        Conv2d(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=1, 
+            padding=(0, 0),
+            bias=bias,
+            **factory_kwargs
+        ),
+        ReLU(),
+        GroupNorm(
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            **factory_kwargs
+        )
+    )
+    return block
+
+
 def _get_expansion_block(
     in_channels: int, 
     expansion_factor: float,
-    norm_num_groups: int = 1,
+    dropout_p: float,
     bias: bool = True,
     **factory_kwargs
 ) -> Sequential:
@@ -50,32 +85,33 @@ def _get_expansion_block(
             in_channels=in_channels,
             out_channels=expanded_channels,
             kernel_size=1,
+            stride=1,
+            padding=(0, 0),
             bias=bias,
-            **factory_kwargs),
+            **factory_kwargs
+        ),
         ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs),
         Conv2d(
             in_channels=expanded_channels,
             out_channels=expanded_channels,
             kernel_size=3,
+            stride=1,
             padding=(1, 1),
             groups=expanded_channels,
             bias=bias,
-            **factory_kwargs),
+            **factory_kwargs
+        ),
         ReLU(),
-        GroupNorm(
-            num_groups=norm_num_groups,
-            num_channels=expanded_channels,
-            **factory_kwargs), 
         Conv2d(
             in_channels=expanded_channels,
             out_channels=in_channels,
             kernel_size=1,
+            stride=1,
+            padding=(0, 0),
             bias=bias,
-            **factory_kwargs),
+            **factory_kwargs
+        ),
+        Dropout(dropout_p)
     )
     return block
 
@@ -132,71 +168,47 @@ class _UMobileViTLayer(Module):
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
         self.fold_params = {"kernel_size": patch_size, "stride": patch_size}
-        self.patch_area = prod(patch_size)
         self.initializer = _get_initializer(initializer)
         
         # global block made of transformer blocks
-        tranformer_block_kwargs = {
-            "in_channels": in_channels, 
-            "dropout_p": dropout_p,
-            "norm_num_groups": norm_num_groups,
-            "bias": bias,
-            "initializer": initializer
-        }
         if transformer_block is not None:
+            tranformer_block_kwargs = {
+                "in_channels": in_channels, 
+                "dropout_p": dropout_p,
+                "norm_num_groups": norm_num_groups,
+                "bias": bias,
+                "initializer": initializer
+            }
             global_block = _get_clones(
                 transformer_block, 
                 N=num_transformer_block,
                 **tranformer_block_kwargs, 
                 **factory_kwargs
             )
-            if issubclass(transformer_block, TransformerEncoderLayer):
-                self.global_block = Sequential(*global_block)
-            elif issubclass(transformer_block, TransformerDecoderLayer):
-                self.global_block = ModuleList(global_block)
-        else:
-            self.global_block = ModuleList([])
-        
-        # local block is depthwise separable convolution, followed by a group norm layer
-        self.local_block = Sequential(
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                padding=(1, 1),
-                bias=bias,
-                groups=in_channels,
-                **factory_kwargs),
-            ReLU(),
-            GroupNorm(
-                num_groups=norm_num_groups,
-                num_channels=in_channels,
-                **factory_kwargs
-            ),
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=1, 
-                bias=bias,
-                **factory_kwargs),
-            ReLU(),
-            GroupNorm(
-                num_groups=norm_num_groups,
-                num_channels=in_channels,
-                **factory_kwargs
-            )
-        )
-        
-        # expansion block implementation, inspired by MobileNetV2 block
-        self.expansion_block = (
-            _get_expansion_block(
+            self.global_block = ModuleList(global_block)
+            
+            # local block is depthwise separable convolution, followed by a group norm layer
+            self.local_block = _get_local_block(
                 in_channels,
-                expansion_factor,
                 norm_num_groups,
                 bias,
-                **factory_kwargs)
-            ) if transformer_block is not None else Identity()
-        
+                **factory_kwargs
+            )
+            
+            # expansion block implementation, inspired by MobileNetV2 block
+            self.expansion_block = _get_expansion_block(
+                in_channels,
+                expansion_factor,
+                dropout_p,
+                bias,
+                **factory_kwargs
+            )
+    
+        else:
+            self.local_block = Identity()
+            self.global_block = ModuleList([])
+            self.expansion_block = Dropout(dropout_p)
+                
         # out normalization
         self.out_norm = GroupNorm(
             num_groups=norm_num_groups,
@@ -208,13 +220,14 @@ class _UMobileViTLayer(Module):
 
 
     def _reset_parameters(self) -> None:
-        for layer in self.local_block:
-            if isinstance(layer, Conv2d):
-                self.initializer(layer.weight)
-                if layer.bias is not None:
-                    zeros_(layer.bias)
+        if not isinstance(self.local_block, Identity):
+            for layer in self.local_block:
+                if isinstance(layer, Conv2d):
+                    self.initializer(layer.weight)
+                    if layer.bias is not None:
+                        zeros_(layer.bias)
         
-        if not isinstance(self.expansion_block, Identity):
+        if not isinstance(self.expansion_block, Dropout):
             for layer in self.expansion_block:
                 if isinstance(layer, Conv2d):
                     self.initializer(layer.weight)
