@@ -50,8 +50,8 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
             Tensor: output of encoder.
             
         Shape
-            input: :math:`(N, C, H, W)`
-            output: :math:`(N, C, H, W)`
+            Input: :math:`(N, C, H, W)`
+            Output: :math:`(N, C, H, W)`
         """
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
@@ -68,7 +68,8 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         # unfolding
         Z = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
         
-        Z = self.global_block(Z)
+        for block in self.global_block: 
+            Z = block(Z)
         
         # folding
         Z = fold_custom(Z, output_size=input_size, kernel_size=self.fold_params["kernel_size"])
@@ -94,12 +95,6 @@ def _get_downsample_block(initializer, **kwargs) -> Sequential:
             dtype=kwargs["dtype"]
         ),
         ReLU(),
-        GroupNorm(
-            num_groups=kwargs["norm_num_groups"],
-            num_channels=kwargs["out_channels"],
-            device=kwargs["device"],
-            dtype=kwargs["dtype"]
-        ),
     )
     
     initializer(block[0].weight)
@@ -113,8 +108,8 @@ class UMobileViTEncoder(Module):
     def __init__(
         self, 
         in_channels: int = 3,
-        d_model: int = 96,
-        expansion_factor: float = 4,
+        d_model: int = 64,
+        expansion_factor: float = 3,
         patch_size: int | Tuple[int, int] = 2,
         dropout_p: float = 0.1,
         norm_num_groups: int = 4,
@@ -161,37 +156,44 @@ class UMobileViTEncoder(Module):
             "padding": (1, 1),
             "bias": bias,
         }
-        stem_block = Sequential(
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=16,
-                **stem_conv_kwargs,
-                **factory_kwargs
+        self.stem_block = ModuleList([
+            # /2
+            Sequential(
+                Conv2d(
+                    in_channels=in_channels,
+                    out_channels=d_model,
+                    **stem_conv_kwargs,
+                    **factory_kwargs
+                ),
+                ReLU(),
             ),
-            ReLU(),
-            Conv2d(
-                in_channels=16,
-                out_channels=16,
-                **stem_conv_kwargs,
-                **factory_kwargs
+            
+            # /4
+            Sequential(
+                Conv2d(
+                    in_channels=d_model,
+                    out_channels=d_model,
+                    **stem_conv_kwargs,
+                    **factory_kwargs
+                ),
+                ReLU()
             ),
-            ReLU(),
-            Conv2d(
-                in_channels=16,
-                out_channels=d_model,
-                **stem_conv_kwargs,
-                **factory_kwargs
-            ),
-            ReLU(),
-            GroupNorm(
-                num_channels=d_model, 
-                num_groups=norm_num_groups,
-                **factory_kwargs
+            
+            # /8
+            Sequential(
+                Conv2d(
+                    in_channels=d_model,
+                    out_channels=d_model,
+                    **stem_conv_kwargs,
+                    **factory_kwargs
+                ),
+                ReLU(),
             )
-        )
+        ])
+        
         
         #
-        # encoder block setup
+        # encoder blocks setup
         #
         encoder_layer_kwargs = {
             "in_channels": d_model,
@@ -224,7 +226,7 @@ class UMobileViTEncoder(Module):
             ),
             *_get_clones(
                 encoder_layer, 
-                N=2,
+                N=1,
                 **encoder_layer_kwargs,
                 **factory_kwargs
             ),
@@ -248,7 +250,6 @@ class UMobileViTEncoder(Module):
         # third stage block - output stride = 64
         # at this stage, patch size would be 1
         encoder_layer_kwargs["patch_size"] = (1, 1)
-        encoder_layer = UMobileViTEncoderLayer
         stage_3 = Sequential(
             _get_downsample_block(
                 self.initializer, 
@@ -264,7 +265,6 @@ class UMobileViTEncoder(Module):
         )
         
         self.layers = ModuleList([
-            stem_block,
             stage_1,
             stage_2,
             stage_3,
@@ -274,6 +274,13 @@ class UMobileViTEncoder(Module):
         
         
     def _reset_parameters(self) -> None:
+        for layer in self.stem_block:
+            for component in layer:
+                if isinstance(component, Conv2d):
+                    self.initializer(component.weight)
+                    if component.bias is not None:
+                        zeros_(component.bias)
+        
         for layer in self.layers:
             for component in layer:
                 if isinstance(component, Conv2d):
@@ -282,7 +289,7 @@ class UMobileViTEncoder(Module):
                         zeros_(component.bias)
        
             
-    def forward(self, input: Tensor) -> Tuple[Tensor]:
+    def forward(self, input: Tensor) -> Tuple[Tuple[Tensor], Tuple[Tensor]]:
         r"""
         Return features at each stages, including stem stage.
 
@@ -292,9 +299,18 @@ class UMobileViTEncoder(Module):
         Returns:
             Tuple[Tensor]: features at each stages of encoder.
         """
-        outputs = []
+        stem_outputs = []
+        stage_outputs = []
+        
         Z = input
+        for layer in self.stem_block[:-1]:
+            Z = layer(Z)
+            stem_outputs.append(Z)
+        Z = self.stem_block[-1](Z)
+        stage_outputs.append(Z)
+        
         for layer in self.layers:
             Z = layer(Z)
-            outputs.append(Z)
-        return tuple(outputs)
+            stage_outputs.append(Z)
+            
+        return tuple(stem_outputs), tuple(stage_outputs), 
