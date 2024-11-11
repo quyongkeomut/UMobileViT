@@ -140,7 +140,8 @@ class UpsampleHead(Module):
         
 
 class SegmentationHead(Module):
-    def __init__(self, 
+    def __init__(
+        self, 
         d_model: int,
         expansion_factor: float = 3,
         dropout_p: float = 0.1,
@@ -173,13 +174,21 @@ class SegmentationHead(Module):
         super().__init__()
         
         factory_kwargs = {"device": device, "dtype": dtype}
+        d_new = max(16, d_model//4)
         initializer = _get_initializer(initializer)
         self.initializer = initializer
         out_channels = _pair(out_channels)
         
         self.lane_head = ModuleList([
+            Conv2d(
+                in_channels=d_model,
+                out_channels=d_new,
+                kernel_size=1,
+                bias=bias,
+                **factory_kwargs    
+            ),
             UpsampleHead(
-                d_model=d_model,
+                d_model=d_new,
                 expansion_factor=expansion_factor,
                 dropout_p=dropout_p,
                 norm_num_groups=norm_num_groups,
@@ -190,18 +199,18 @@ class SegmentationHead(Module):
             ),
             Sequential(
                 Conv2d(
-                    in_channels=d_model,
-                    out_channels=d_model,
+                    in_channels=d_new,
+                    out_channels=d_new,
                     kernel_size=3,
                     stride=1,
                     padding=(1, 1),
-                    groups=d_model,
+                    groups=d_new,
                     bias=bias,
                     **factory_kwargs,
                 ),
                 ReLU(),
                 Conv2d(
-                    in_channels=d_model,
+                    in_channels=d_new,
                     out_channels=out_channels[0],
                     kernel_size=1,
                     bias=bias,
@@ -210,8 +219,15 @@ class SegmentationHead(Module):
             )
         ])
         self.drivable_head = ModuleList([
+            Conv2d(
+                in_channels=d_model,
+                out_channels=d_new,
+                kernel_size=1,
+                bias=bias,
+                **factory_kwargs    
+            ),
             UpsampleHead(
-                d_model=d_model,
+                d_model=d_new,
                 expansion_factor=expansion_factor,
                 dropout_p=dropout_p,
                 norm_num_groups=norm_num_groups,
@@ -222,18 +238,18 @@ class SegmentationHead(Module):
             ),
             Sequential(
                 Conv2d(
-                    in_channels=d_model,
-                    out_channels=d_model,
+                    in_channels=d_new,
+                    out_channels=d_new,
                     kernel_size=3,
                     stride=1,
                     padding=(1, 1),
-                    groups=d_model,
+                    groups=d_new,
                     bias=bias,
                     **factory_kwargs,
                 ),
                 ReLU(),
                 Conv2d(
-                    in_channels=d_model,
+                    in_channels=d_new,
                     out_channels=out_channels[1],
                     kernel_size=1,
                     bias=bias,
@@ -246,6 +262,14 @@ class SegmentationHead(Module):
     
     
     def _reset_parameters(self,) -> None:
+        self.initializer(self.lane_head[0].weight)
+        if self.lane_head[0].bias is not None:
+            zeros_(self.lane_head[0].bias)
+        
+        self.initializer(self.drivable_head[0].weight)
+        if self.drivable_head[0].bias is not None:
+            zeros_(self.drivable_head[0].bias)
+        
         for layer in self.lane_head[-1]:
             if isinstance(layer, Conv2d):
                 self.initializer(layer.weight)
@@ -264,10 +288,12 @@ class SegmentationHead(Module):
         input: Tensor, 
         outputs_stem: Tensor
     ) -> Tuple[Tensor]:
-        line_head_feat = self.lane_head[0](input, outputs_stem)
+        line_head_feat = self.lane_head[0](input)
+        line_head_feat = self.lane_head[1](line_head_feat, outputs_stem)
         line_mask = self.lane_head[-1](line_head_feat)
         
-        drivable_head_feat = self.drivable_head[0](input, outputs_stem)
+        drivable_head_feat = self.drivable_head[0](input)
+        drivable_head_feat = self.drivable_head[1](drivable_head_feat, outputs_stem)
         drivable_mask = self.drivable_head[-1](drivable_head_feat)
         
         return (drivable_mask, line_mask)

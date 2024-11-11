@@ -156,12 +156,14 @@ class UMobileViTEncoder(Module):
             "padding": (1, 1),
             "bias": bias,
         }
+        
+        d_stem = max(16, d_model//4)
         self.stem_block = ModuleList([
             # /2
             Sequential(
                 Conv2d(
                     in_channels=in_channels,
-                    out_channels=d_model,
+                    out_channels=d_stem,
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
@@ -171,8 +173,8 @@ class UMobileViTEncoder(Module):
             # /4
             Sequential(
                 Conv2d(
-                    in_channels=d_model,
-                    out_channels=d_model,
+                    in_channels=d_stem,
+                    out_channels=d_stem,
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
@@ -182,7 +184,7 @@ class UMobileViTEncoder(Module):
             # /8
             Sequential(
                 Conv2d(
-                    in_channels=d_model,
+                    in_channels=d_stem,
                     out_channels=d_model,
                     **stem_conv_kwargs,
                     **factory_kwargs
