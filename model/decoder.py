@@ -8,6 +8,7 @@ from torch.nn import (
     Sequential,
     ReLU,
     Conv2d,
+    GroupNorm,
     Upsample,
 )
 import torch.nn.functional as F
@@ -112,6 +113,12 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         to the model space.
         
         """
+        self.global_norm = GroupNorm(
+            num_groups=kwargs["norm_num_groups"],
+            num_channels=kwargs["in_channels"],
+            device=kwargs["device"],
+            dtype=kwargs["dtype"]
+        )
         self.global_block = Sequential(
             Conv2d(
                 in_channels=kwargs["in_channels"],
@@ -184,7 +191,7 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         Z = self.local_block(input) # (N, C, H, W)
         
         # global block forward
-        Z = Z + memory
+        Z = self.global_norm(Z + memory)
         Z = self.global_block(Z)    
         
         # expansion block forward
