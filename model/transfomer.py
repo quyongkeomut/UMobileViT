@@ -81,19 +81,18 @@ class SeparableAttention(Module):
         self._qkv_same_channels = self.k_channels == self.v_channels and in_channels == self.v_channels
         self.dropout_p = dropout_p
         self.initializer = _get_initializer(initializer)
-        kernel_size = (1, 1)
         
         if not self._qkv_same_channels:
-            self.q_proj_weight = Parameter(torch.empty((1, in_channels, *kernel_size), **factory_kwargs))
-            self.k_proj_weight = Parameter(torch.empty((in_channels, self.k_channels, *kernel_size), **factory_kwargs))
-            self.v_proj_weight = Parameter(torch.empty((in_channels, self.k_channels, *kernel_size), **factory_kwargs))
+            self.q_proj_weight = Parameter(torch.empty((1, in_channels), **factory_kwargs))
+            self.k_proj_weight = Parameter(torch.empty((in_channels, self.k_channels), **factory_kwargs))
+            self.v_proj_weight = Parameter(torch.empty((in_channels, self.k_channels), **factory_kwargs))
             self.register_parameter('in_proj_weight', None)
         else:
             self.register_parameter('q_proj_weight', None)
             self.register_parameter('k_proj_weight', None)
             self.register_parameter('v_proj_weight', None)
-            self.in_proj_weight = Parameter(torch.empty((1 + 2*in_channels, in_channels, *kernel_size), **factory_kwargs))
-        self.out_proj_weight = Parameter(torch.empty((in_channels, in_channels, *kernel_size), **factory_kwargs))
+            self.in_proj_weight = Parameter(torch.empty((1 + 2*in_channels, in_channels), **factory_kwargs))
+        self.out_proj_weight = Parameter(torch.empty((in_channels, in_channels), **factory_kwargs))
         
         if bias:
             self.in_proj_bias = Parameter(torch.empty(1 + 2*in_channels, **factory_kwargs))
@@ -231,9 +230,11 @@ class TransformerEncoderLayer(Module):
             **factory_kwargs
         )
         self.dropout_self_attn = Dropout(dropout_p)
-        self.norm_self_attn = GroupNorm(num_groups=norm_num_groups, 
-                                        num_channels=in_channels,
-                                        **factory_kwargs)
+        self.norm_self_attn = GroupNorm(
+            num_groups=norm_num_groups, 
+            num_channels=in_channels,
+            **factory_kwargs
+        )
     
     
     def forward(
@@ -331,9 +332,11 @@ class TransformerDecoderLayer(Module):
             **factory_kwargs
         )
         self.dropout_self_attn = Dropout(dropout_p)
-        self.norm_self_attn = GroupNorm(num_groups=norm_num_groups, 
-                                         num_channels=in_channels,
-                                         **factory_kwargs)
+        self.norm_self_attn = GroupNorm(
+            num_groups=norm_num_groups, 
+            num_channels=in_channels,
+            **factory_kwargs
+        )
                 
         # Implementation of Cross Attention part
         self.cross_attn = SeparableAttention(
@@ -344,9 +347,11 @@ class TransformerDecoderLayer(Module):
             **factory_kwargs
         )
         self.dropout_cross_attn = Dropout(dropout_p)
-        self.norm_cross_attn = GroupNorm(num_groups=norm_num_groups, 
-                                         num_channels=in_channels,
-                                         **factory_kwargs)
+        self.norm_cross_attn = GroupNorm(
+            num_groups=norm_num_groups, 
+            num_channels=in_channels,
+            **factory_kwargs
+        )
         
         
     def forward(
