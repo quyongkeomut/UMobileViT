@@ -8,7 +8,6 @@ from torch.nn import (
     Sequential,
     ReLU,
     Conv2d,
-    GroupNorm,
     Upsample,
 )
 import torch.nn.functional as F
@@ -59,10 +58,11 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
             
         Shape
             Inputs:
-                input: :math:`(N, C, H, W)`
-                memory: :math:`(N, C, H, W)`
+            - input: :math:`(N, C, H, W)`
+            - memory: :math:`(N, C, H, W)`
 
-            Output: :math:`(N, C, H, W)`
+            Output: 
+            - :math:`(N, C, H, W)`
         """
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
@@ -84,23 +84,15 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         
         # global block forward
         
-        # unfolding
-        # Z = F.unfold(Z, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
-        # Z = Z.contiguous()
-        # mem = F.unfold(memory, **self.fold_params).view(N, C, self.patch_area, -1) # (N, C, P, S)   
-        # mem = mem.contiguous()
-        
-        Z = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
-        mem = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"])
+        # unfolding        
+        Z = unfold_custom(Z, kernel_size=self.fold_params["kernel_size"]) # (N, C, P, S)
+        memory = unfold_custom(memory, kernel_size=self.fold_params["kernel_size"]) # (N, C, P, S)
         
         for block in self.global_block: 
-            Z = block(Z, mem)
+            Z = block(Z, memory)
             
         # folding
-        # Z = Z.view(N, C*self.patch_area, -1).contiguous() # (N, C*P, S)
-        # Z = F.fold(Z, output_size=output_size, **self.fold_params) #.contiguous() # (N, C, H, W)
-        Z = fold_custom(Z, output_size=input_size, kernel_size=self.fold_params["kernel_size"])
-        
+        Z = fold_custom(Z, output_size=input_size, kernel_size=self.fold_params["kernel_size"]) # (N, C, H, W)
         
         # expansion block forward
         Z = self.expansion_block(Z)
@@ -109,32 +101,18 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         return self.out_norm(Z + input)
              
 
-class DecoderOutLayer(_UMobileViTLayer):
+class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
     def __init__(self, **kwargs) -> None:
         super().__init__(transformer_block=None, **kwargs)
         
         r"""
         
         Implement the custom global block. Instead of performing self-attention and 
-        cross-attention, this global block will project the concatenated feature map
+        cross-attention, this global block will project the encoder feature-added feature map
         to the model space.
         
         """
-        
         self.global_block = Sequential(
-            Conv2d(
-                in_channels=2*kwargs["in_channels"],
-                out_channels=kwargs["in_channels"],
-                kernel_size=1,
-                bias=kwargs["bias"],
-                device=kwargs["device"],
-                dtype=kwargs["dtype"]),
-            ReLU(),
-            GroupNorm(
-                num_groups=kwargs["norm_num_groups"],
-                num_channels=kwargs["in_channels"],
-                device=kwargs["device"],
-                dtype=kwargs["dtype"]),
             Conv2d(
                 in_channels=kwargs["in_channels"],
                 out_channels=kwargs["in_channels"],
@@ -143,7 +121,18 @@ class DecoderOutLayer(_UMobileViTLayer):
                 groups=kwargs["in_channels"],
                 bias=kwargs["bias"],
                 device=kwargs["device"],
-                dtype=kwargs["dtype"]),
+                dtype=kwargs["dtype"]
+            ),
+            ReLU(),
+            Conv2d(
+                in_channels=kwargs["in_channels"],
+                out_channels=kwargs["in_channels"],
+                kernel_size=1,
+                padding=(0, 0),
+                bias=kwargs["bias"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]
+            ),
             ReLU(),
         )
         
@@ -174,10 +163,11 @@ class DecoderOutLayer(_UMobileViTLayer):
             
         Shape
             Inputs:
-                input: :math:`(N, C, H, W)`
-                memory: :math:`(N, C, H, W)`
+            - input: :math:`(N, C, H, W)`
+            - memory: :math:`(N, C, H, W)`
 
-            Output: :math:`(N, C, H, W)`
+            Output: 
+            - :math:`(N, C, H, W)`
         """
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
@@ -194,7 +184,7 @@ class DecoderOutLayer(_UMobileViTLayer):
         Z = self.local_block(input) # (N, C, H, W)
         
         # global block forward
-        Z = torch.cat([Z, memory], dim=1)
+        Z = Z + memory
         Z = self.global_block(Z)    
         
         # expansion block forward
@@ -222,12 +212,6 @@ def _get_upsample_block(initializer, **kwargs) -> Sequential:
             dtype=kwargs["dtype"]
         ),
         ReLU(),
-        GroupNorm(
-            num_groups=kwargs["norm_num_groups"],
-            num_channels=kwargs["out_channels"],
-            device=kwargs["device"],
-            dtype=kwargs["dtype"]
-        )
     )
     
     initializer(block[1].weight)
@@ -240,7 +224,7 @@ def _get_upsample_block(initializer, **kwargs) -> Sequential:
 class UMobileViTDecoder(Module):
     def __init__(
         self,  
-        d_model: int = 96,
+        d_model: int = 64,
         expansion_factor: float = 3,
         patch_size: int | Tuple[int, int] = 2,
         dropout_p: float = 0.1,
@@ -329,7 +313,7 @@ class UMobileViTDecoder(Module):
             ),
             *_get_clones(
                 decoder_layer, 
-                N=2,
+                N=1,
                 **decoder_layer_kwargs, 
                 **factory_kwargs
             ),
@@ -343,7 +327,7 @@ class UMobileViTDecoder(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            DecoderOutLayer(**decoder_layer_kwargs, **factory_kwargs)
+            UMobileViTDecoderAdditiveLayer(**decoder_layer_kwargs, **factory_kwargs)
         ])
         
         self.layers = ModuleList([
@@ -369,10 +353,10 @@ class UMobileViTDecoder(Module):
             len(inputs) - 1 == len(self.layers)
         ), f"number of inputs is expected to be equal to {len(self.layers) + 1}, got {len(inputs)}"
         
-        Z = inputs[0]
+        Z = inputs[0] # get the latent tensor
         for i, memory in enumerate(inputs[1:]): 
             Z = self.layers[i][0](Z) # upsample
-            for l in self.layers[i][1:]: # cross attention
-                Z = l(Z, memory)
+            for layer in self.layers[i][1:]: # cross attention / additive layer
+                Z = layer(Z, memory)
         
         return Z
