@@ -37,7 +37,6 @@ if __name__ == "__main__":
     import os
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    os.environ["NVIDIA_TF32_OVERRIDE"] = "1"
     os.environ["TORCH_LOGS"] = "+dynamo"
     os.environ["TORCHDYNAMO_VERBOSE"] = "1"
     os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "0"
