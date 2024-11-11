@@ -15,7 +15,7 @@ class UMobileViT(Module):
         in_channels: int = 3,
         out_channels: int | Tuple[int, int] = (2, 2),
         d_model: int = 64,
-        expansion_factor: float = 8,
+        expansion_factor: float = 3,
         alpha: float = 1,
         patch_size: int | Tuple[int, int] = (2, 2),
         dropout_p: float = 0.1,
@@ -27,19 +27,27 @@ class UMobileViT(Module):
         dtype=None
     ) -> None:
         r"""
-        Initializer of UMobileViT model
+        Initializer of UmobileViT model. 
 
         Args:
             in_channels (int, optional): Number of channels of input image. Defaults to 3.
+            out_channels (int | Tuple[int, int], optional): Number of channels of output massk. 
+                Defaults to (2, 2).
+            d_model (int, optional): Dimentions / Number of feature maps of the whole model. 
+                Defaults to 64.
+            expansion_factor (float, optional): Expansion factor in Inverted Residual block. 
+                Defaults to 3.
             alpha (float, optional): Controls the width of the model. Defaults to 1.
-            patch_size (int | Tuple[int, int], optional): Size of patch using in encoder layer. 
-                Defaults to 2.
+            patch_size (int | Tuple[int, int], optional): Size of patch using in Separable Attention module . 
+                Defaults to (2, 2).
             dropout_p (float, optional): Dropout probability. Defaults to 0.1.
             norm_num_groups (int, optional): Control number of groups to be normalized. If
                 ``norm_num_groups`` = 1, this is equivalent to LayerNorm. Defaults to 4.
             bias (bool, optional): If ``True``, add trainable bias to building blocks. Defaults to True.
+            num_transformer_block (int, optional): Number of Transformer block used in encoder/decoder layer. 
+                Defaults to 2.
             initializer (str | Callable[[Tensor], Tensor], optional): Parameters initializer.
-                Defaults to "he_uniform" aka _kaiming_uniform.
+                Defaults to "he_uniform" aka _kaiming_uniform. 
         """
         assert (
             alpha >= 0 
@@ -70,7 +78,7 @@ class UMobileViT(Module):
     
     
     def forward(self, input: Tensor) -> Tensor:
-        encoder_outputs = self.encoder(input)
-        output_decoder = self.decoder(tuple(reversed(encoder_outputs)))
-        output = self.seg_head(output_decoder)
+        stem_outputs, stage_outputs = self.encoder(input)
+        output_decoder = self.decoder(tuple(reversed(stage_outputs)))
+        output = self.seg_head(output_decoder, tuple(reversed(stem_outputs)))
         return output
