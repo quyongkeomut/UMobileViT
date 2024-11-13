@@ -157,7 +157,7 @@ class UMobileViTEncoder(Module):
             "bias": bias,
         }
         
-        d_stem = max(16, d_model//4)
+        d_stem = max(16, d_model//8)
         self.stem_block = ModuleList([
             # /2
             Sequential(
@@ -178,7 +178,12 @@ class UMobileViTEncoder(Module):
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
-                ReLU()
+                ReLU(),
+                GroupNorm(
+                    num_groups=norm_num_groups,
+                    num_channels=d_stem,
+                    **factory_kwargs
+                )
             ),
             
             # /8
@@ -190,6 +195,11 @@ class UMobileViTEncoder(Module):
                     **factory_kwargs
                 ),
                 ReLU(),
+                GroupNorm(
+                    num_groups=norm_num_groups,
+                    num_channels=d_model,
+                    **factory_kwargs
+                )
             )
         ])
         
