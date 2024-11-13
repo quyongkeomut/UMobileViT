@@ -398,6 +398,7 @@ def separable_attention_forward(
             b_k,
             b_v,
         )
+        
     # prepare for attention
     context_scores = dropout(
         softmax(q, dim=-2),
@@ -427,7 +428,6 @@ def separable_attention_forward(
     attn_values = attn_values.transpose(1, -1) # .contiguous() # (N, C, seq, spatial)
     
     return (attn_values, context_scores) if need_context_scores else (attn_values, )
-
 
 
 if __name__ == "__main__":
