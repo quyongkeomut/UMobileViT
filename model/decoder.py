@@ -102,7 +102,7 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         return self.out_norm(Z + input)
              
 
-class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
+class UMobileViTDecoderConcatLayer(_UMobileViTLayer):
     def __init__(self, **kwargs) -> None:
         super().__init__(transformer_block=None, **kwargs)
         
@@ -113,26 +113,20 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         to the model space.
         
         """
-        self.global_norm = GroupNorm(
-            num_groups=kwargs["norm_num_groups"],
-            num_channels=kwargs["in_channels"],
-            device=kwargs["device"],
-            dtype=kwargs["dtype"]
-        )
         self.global_block = Sequential(
             Conv2d(
-                in_channels=kwargs["in_channels"],
-                out_channels=kwargs["in_channels"],
+                in_channels=2*kwargs["in_channels"],
+                out_channels=2*kwargs["in_channels"],
                 kernel_size=3,
                 padding=(1, 1),
-                groups=kwargs["in_channels"],
+                groups=2*kwargs["in_channels"],
                 bias=kwargs["bias"],
                 device=kwargs["device"],
                 dtype=kwargs["dtype"]
             ),
             ReLU(),
             Conv2d(
-                in_channels=kwargs["in_channels"],
+                in_channels=2*kwargs["in_channels"],
                 out_channels=kwargs["in_channels"],
                 kernel_size=1,
                 padding=(0, 0),
@@ -191,7 +185,7 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         Z = self.local_block(input) # (N, C, H, W)
         
         # global block forward
-        Z = self.global_norm(Z + memory)
+        Z = torch.cat([Z, memory], dim=1)
         Z = self.global_block(Z)    
         
         # expansion block forward
@@ -334,7 +328,7 @@ class UMobileViTDecoder(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            UMobileViTDecoderAdditiveLayer(**decoder_layer_kwargs, **factory_kwargs)
+            UMobileViTDecoderConcatLayer(**decoder_layer_kwargs, **factory_kwargs)
         ])
         
         self.layers = ModuleList([
