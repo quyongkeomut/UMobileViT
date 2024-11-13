@@ -52,7 +52,7 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         Args:
             input (Tensor): input of decoder. Must be 4D Tensor.
             memory (Tensor): output of encoder layer at a specific stage. Must share the
-                same spatial and sequence dimentions with input.
+                same spatial and sequence dimensions with input.
 
         Returns:
             Tensor: output of decoder.
@@ -68,10 +68,10 @@ class UMobileViTDecoderLayer(_UMobileViTLayer):
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
             input.dim() == 4
-        ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+        ), f"Encoder block expected input have 4 dimensions, got {input.dim()}." 
         assert (
             memory.dim() == 4
-        ), f"Encoder block expected memory have 4 dimentions, got {memory.dim()}." 
+        ), f"Encoder block expected memory have 4 dimensions, got {memory.dim()}." 
         
         N, C, *input_size = input.shape
         assert (
@@ -163,7 +163,7 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         Args:
             input (Tensor): input of decoder. Must be 4D Tensor.
             memory (Tensor): output of encoder layer at a specific stage. Must share the
-                same spatial and sequence dimentions with input.
+                same spatial and sequence dimensions with input.
 
         Returns:
             Tensor: output of decoder.
@@ -179,10 +179,10 @@ class UMobileViTDecoderAdditiveLayer(_UMobileViTLayer):
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
             input.dim() == 4
-        ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+        ), f"Encoder block expected input have 4 dimensions, got {input.dim()}." 
         assert (
             memory.dim() == 4 
-        ), f"Encoder block expected memory have 4 dimentions, got {memory.dim()}."
+        ), f"Encoder block expected memory have 4 dimensions, got {memory.dim()}."
         assert (
             input.size(1) == memory.size(1)
         ), f"Encoder block expected input and memory have the same channels, got {input.size(1)} and {memory.size(1)}"

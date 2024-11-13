@@ -37,7 +37,7 @@ class UMobileViT(Module):
             in_channels (int, optional): Number of channels of input image. Defaults to 3.
             out_channels (int | Tuple[int, int], optional): Number of channels of output massk. 
                 Defaults to (2, 2).
-            d_model (int, optional): Dimentions / Number of feature maps of the whole model. 
+            d_model (int, optional): Dimensions / Number of feature maps of the whole model. 
                 Defaults to 64.
             expansion_factor (float, optional): Expansion factor in Inverted Residual block. 
                 Defaults to 3.

@@ -44,7 +44,7 @@ def unfold_custom(
     kernel_size = _pair(kernel_size)
     assert (
         input.dim() == 4
-    ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+    ), f"Encoder block expected input have 4 dimensions, got {input.dim()}." 
     N, C, H, W = input.shape
     
     # setup size variables
@@ -89,7 +89,7 @@ def fold_custom(
     kernel_size = _pair(kernel_size)
     assert (
         input.dim() == 4
-    ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+    ), f"Encoder block expected input have 4 dimensions, got {input.dim()}." 
     
     # setup size variables
     N, C, num_patches, patch_area = input.shape
@@ -121,7 +121,7 @@ def _separable_attn_shape_check(
     
     assert (
         query.shape[2:] == key.shape[2:] and value.shape[2:] == key.shape[2:]
-    ), "query, key and value do not have the same spatial dimention and dimention of sequence"
+    ), "query, key and value do not have the same spatial dimension and dimension of sequence"
 
 
 def _in_projection_packed(

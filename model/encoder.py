@@ -56,7 +56,7 @@ class UMobileViTEncoderLayer(_UMobileViTLayer):
         # check intergrity: features sizes must be divisible by patch sizes respectively
         assert (
             input.dim() == 4
-        ), f"Encoder block expected input have 4 dimentions, got {input.dim()}." 
+        ), f"Encoder block expected input have 4 dimensions, got {input.dim()}." 
         N, C, *input_size = input.shape
         
         # local block forward
