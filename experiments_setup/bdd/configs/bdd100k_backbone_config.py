@@ -2,6 +2,7 @@ BACKBONE_CONFIGS = {
     "in_channels": 3,
     "d_model": 64,
     "expansion_factor": 3,
+    "patch_size": (2, 2),
     "dropout_p": 0.1,
     "norm_num_groups": 1,   
     "bias": True, 
