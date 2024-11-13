@@ -15,12 +15,11 @@ from trainer import Trainer
 from experiments_setup.bdd.configs.bdd100k_backbone_config import BACKBONE_CONFIGS
 from experiments_setup.bdd.configs.bdd100k_experiment_config import (
     OUT_CHANNELS, 
-    PATCH_SIZE,
     OPTIMIZER_NAME,
     OPTIM_ARGS
 )
 from optimizer.bdd100k_optim import OPTIMIZERS
-from model.umobilevit import UMobileViT
+from model.umobilevit import umobilevit
 import numpy as np
 import random
 
@@ -32,13 +31,13 @@ def set_seed(seed):
 
 
 if __name__ == "__main__":
-    
+
     # environment setup
     import os
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     os.environ["TORCH_LOGS"] = "+dynamo"
-    os.environ["TORCHDYNAMO_VERBOSE"] = "1"
+    # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
     os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "0"
 
     # The flags below controls whether to allow TF32 on cuda and cuDNN
@@ -61,7 +60,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Training args')
 
-    parser.add_argument('--scale', type=float, default=0.25,required=False, help='Model scale')
+    parser.add_argument('--task', type=str, default="lane-drivable", required=False, help='Task to train model')
+    parser.add_argument('--scale', type=float, default=0.25, required=False, help='Model scale')
     parser.add_argument('--epochs', type=int, default=100, help='Num epochs')
     parser.add_argument('--batch', type=int, default=16, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='seed for training')
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     
     
     # setup model hyperparameters and training parameters
-    alpha = args.scale
+    task = args.task
     num_epochs = args.epochs
     batch_size = args.batch
     seed = args.seed
@@ -81,18 +81,20 @@ if __name__ == "__main__":
     set_seed(seed)
 
     # these hyperparams depend on the dataset / experiment
-    out_channels = OUT_CHANNELS
-    patch_size = PATCH_SIZE
     otim = OPTIMIZER_NAME
     optim_args = OPTIM_ARGS
 
     # initialize the model and optimizer
-    model = UMobileViT(
-        alpha=alpha,
-        out_channels=out_channels,
-        patch_size=patch_size,
-        device=device,
+    model_kwargs = {
+        "out_channels": OUT_CHANNELS,
+        "alpha": args.scale,
+        "device": device,
         **BACKBONE_CONFIGS
+    }
+    model = umobilevit(
+        weights_path=check_point,
+        task=task,
+        **model_kwargs
     )
     optimizer = OPTIMIZERS[otim](
         model.parameters(), 
@@ -102,35 +104,35 @@ if __name__ == "__main__":
 
     # load check point...
     if check_point:
-        check_point = torch.load(check_point, weights_only=True)
+        # load checkpoint
+        check_point = torch.load(check_point, weights_only=False)
         
-        model.load_state_dict(check_point["model_state_dict"])
-        # optimizer.load_state_dict(check_point["optimizer_state_dict"])
+        # from checkpoint, load state_dict of optimizer and lr_schedulers
+        optimizer.load_state_dict(check_point["optimizer_state_dict"])
+        lr_scheduler_increase = LinearLR(
+            optimizer,
+            start_factor=1/5,
+            total_iters=5
+        )
+        lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
+        lr_scheduler_cosine = CosineAnnealingLR(
+            optimizer, 
+            T_max=num_epochs-5,
+            eta_min=1e-4
+        )
+        lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
         
-        # lr_scheduler_increase = LinearLR(
-        #     optimizer,
-        #     start_factor=1/5,
-        #     total_iters=5
-        # )
-        # lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
+        # load the index of last training epoch
+        last_epoch = check_point["epoch"]
         
-        # lr_scheduler_cosine = CosineAnnealingLR(
-        #     optimizer, 
-        #     T_max=num_epochs-5,
-        #     eta_min=1e-4
-        # )
-        # lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
-        
-        # last_epoch = check_point["epoch"]
-        last_epoch = 0
-        lr_scheduler_increase = None
-        lr_scheduler_cosine = None
+        # last_epoch = 0
+        # lr_scheduler_increase = None
+        # lr_scheduler_cosine = None
     else:
         last_epoch = 0
         lr_scheduler_increase = None
         lr_scheduler_cosine = None
         
-    model = model.to(device)
     model.compile(fullgraph=True, backend="cudagraphs")    
 
     criterion = TotalLoss()
@@ -163,7 +165,7 @@ if __name__ == "__main__":
         start_epoch=last_epoch,
         train_loader=train_loader,
         val_loader=val_loader,
-        num_classes=out_channels,
+        num_classes=OUT_CHANNELS,
         lr_scheduler_increase=lr_scheduler_increase,
         lr_scheduler_cosine=lr_scheduler_cosine,
         device=device
