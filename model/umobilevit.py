@@ -1,4 +1,8 @@
-from typing import Tuple, Callable
+from typing import (
+    Tuple, 
+    Callable,
+    Optional
+)
 
 import torch
 from torch import Tensor
@@ -6,23 +10,23 @@ from torch.nn import Module
 
 from model.encoder import UMobileViTEncoder
 from model.decoder import UMobileViTDecoder
-from model.seg_head import SegmentationHead
+from model.seg_head import DrivableAndLaneSegHead, SegHead
 
      
 class UMobileViT(Module):
     def __init__(
         self,
-        in_channels: int = 3,
-        out_channels: int | Tuple[int, int] = (2, 2),
-        d_model: int = 64,
-        expansion_factor: float = 3,
-        alpha: float = 1,
-        patch_size: int | Tuple[int, int] = (2, 2),
-        dropout_p: float = 0.1,
-        norm_num_groups: int = 4,
-        bias: bool = True, 
-        num_transformer_block: int = 2,
-        initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
+        in_channels: int,
+        out_channels: int | Tuple[int, int],
+        d_model: int,
+        expansion_factor: float,
+        alpha: float,
+        patch_size: int | Tuple[int, int],
+        dropout_p: float,
+        norm_num_groups: int,
+        bias: bool, 
+        num_transformer_block: int,
+        initializer: str | Callable[[Tensor], Tensor],
         device=None,
         dtype=None
     ) -> None:
@@ -71,14 +75,62 @@ class UMobileViT(Module):
         }
         self.encoder = UMobileViTEncoder(in_channels=in_channels, **kwargs)
         self.decoder = UMobileViTDecoder(**kwargs)
-        self.seg_head = SegmentationHead(
+        self.seg_head = DrivableAndLaneSegHead(
             out_channels=out_channels,
             **kwargs 
         )
     
     
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input: Tensor) -> Tensor | Tuple[Tensor, Tensor]:
         stem_outputs, stage_outputs = self.encoder(input)
         output_decoder = self.decoder(tuple(reversed(stage_outputs)))
         output = self.seg_head(output_decoder, tuple(reversed(stem_outputs)))
         return output
+
+
+def umobilevit(
+    task: Optional[str] = "lane-drivable",
+    weights_path: Optional[str] = None,
+    in_channels: int = 3,
+    out_channels: int | Tuple[int, int] = (2, 2),
+    d_model: int = 64,
+    expansion_factor: float = 3,
+    alpha: float = 1,
+    patch_size: int | Tuple[int, int] = (2, 2),
+    dropout_p: float = 0.1,
+    norm_num_groups: int = 4,
+    bias: bool = True, 
+    num_transformer_block: int = 2,
+    initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
+    device=None,
+    dtype=None
+) -> UMobileViT:
+    
+    # load architecture 
+    kwargs = {
+        "in_channels": in_channels,
+        "out_channels": out_channels,
+        "d_model": d_model,
+        "expansion_factor": expansion_factor,
+        "alpha": alpha,
+        "patch_size": patch_size,
+        "dropout_p": dropout_p,
+        "norm_num_groups": norm_num_groups,
+        "bias": bias, 
+        "num_transformer_block": num_transformer_block,
+        "initializer": initializer,
+        "device": device,
+        "dtype": dtype
+    }
+    model = UMobileViT(**kwargs)
+    
+    # load pretrained weights (if specified)
+    if weights_path:
+        check_point = torch.load(weights_path, weights_only=False)
+        model.load_state_dict(check_point["model_state_dict"])
+    
+    # if task is not lane and drivable segmentation, change the head of model
+    if task != "lane-drivable":
+        model.seg_head = SegHead(**kwargs)
+    
+    return model
