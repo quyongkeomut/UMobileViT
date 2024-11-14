@@ -1,7 +1,7 @@
 from typing import Tuple, Callable
 
 import torch
-from torch import Tensor, cat
+from torch import Tensor
 from torch.nn import (
     Module,
     Sequential,
@@ -17,7 +17,7 @@ from model.module import (
     _get_initializer,
 )
 from model.decoder import (
-    UMobileViTDecoderAdditiveLayer,
+    UMobileViTDecoderConcatLayer,
     _get_upsample_block
 )
 
@@ -82,7 +82,7 @@ class UpsampleHead(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            UMobileViTDecoderAdditiveLayer(
+            UMobileViTDecoderConcatLayer(
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,
@@ -96,7 +96,7 @@ class UpsampleHead(Module):
                 **upsampling_conv_kwargs,
                 **factory_kwargs
             ),
-            UMobileViTDecoderAdditiveLayer(
+            UMobileViTDecoderConcatLayer(
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,)
@@ -170,7 +170,7 @@ class SegHead(Module):
         super().__init__()
         
         factory_kwargs = {"device": device, "dtype": dtype}
-        d_new = max(16, d_model//4)
+        d_new = max(16, d_model//8)
         initializer = _get_initializer(initializer)
         self.initializer = initializer
         
@@ -255,7 +255,7 @@ class DrivableAndLaneSegHead(Module):
         self, 
         d_model: int,
         dropout_p: float = 0.1,
-        out_channels: int | Tuple[int, int] = [2, 2],
+        out_channels: int | Tuple[int, int] = (2, 2),
         norm_num_groups: int = 4,
         bias: bool = True, 
         initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
@@ -296,8 +296,8 @@ class DrivableAndLaneSegHead(Module):
         }
         
         # drivable head and lane head are segmentation heads
-        self.drivable_head = SegHead(out_channels=out_channels[0], **kwargs)
-        self.lane_head = SegHead(out_channels=out_channels[1], **kwargs)
+        self.drivable_head = SegHead(out_channels=out_channels[1], **kwargs)
+        self.lane_head = SegHead(out_channels=out_channels[0], **kwargs)
                 
 
     def forward(

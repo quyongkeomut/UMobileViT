@@ -134,14 +134,14 @@ class SeparableAttention(Module):
         Shape:
             Inputs:
             - query: (N, Cq, spatial, seq_len) where ``N`` is the batch size, ``Cq`` is 
-                the number of channels, ``spatial`` is the spatial dimentions of patched 
-                feature. The dimention ``seq_len`` is the sequence length.
+                the number of channels, ``spatial`` is the spatial dimensions of patched 
+                feature. The dimension ``seq_len`` is the sequence length.
             - key: (N, Ck, spatial, seq_len) where ``N`` is the batch size, ``Ck`` is 
-                the number of channels, ``spatial`` is the spatial dimentions of patched 
-                feature. The dimention ``seq_len`` is the sequence length.
+                the number of channels, ``spatial`` is the spatial dimensions of patched 
+                feature. The dimension ``seq_len`` is the sequence length.
             - value: (N, Cv, spatial, seq_len) where ``N`` is the batch size, ``Cv`` is 
-                the number of channels, ``spatial`` is the spatial dimentions of patched 
-                feature. The dimention ``seq_len`` is the sequence length.
+                the number of channels, ``spatial`` is the spatial dimensions of patched 
+                feature. The dimension ``seq_len`` is the sequence length.
             
             
             Outputs:
@@ -155,13 +155,13 @@ class SeparableAttention(Module):
         #
         assert (
             query.dim() == 4
-        ), f"Expected query have 4 dimentions, got {input.shape}."
+        ), f"Expected query have 4 dimensions, got {input.shape}."
         assert (
             key.dim() == 4
-        ), f"Expected query have 4 dimentions, got {key.shape}."
+        ), f"Expected query have 4 dimensions, got {key.shape}."
         assert (
             value.dim() == 4
-        ), f"Expected query have 4 dimentions, got {value.shape}."
+        ), f"Expected query have 4 dimensions, got {value.shape}."
         
         
         #
@@ -257,7 +257,7 @@ class TransformerEncoderLayer(Module):
             Inputs: 
             - input: (N, C, spatial, seq) where N is the batch size, C is number of 
                 channels; spatial and sequence are the result of unfold operation to
-                form the sequence dimention for attention operation.
+                form the sequence dimension for attention operation.
                           
             Outputs:
             - attn_output: (N, C, spatial, seq)
@@ -266,7 +266,7 @@ class TransformerEncoderLayer(Module):
         # validate the shape of input  
         assert (
             input.dim() == 4
-        ), f"Transformer encoder block expected input have 4 dimentions, got {input.dim()}." 
+        ), f"Transformer encoder block expected input have 4 dimensions, got {input.dim()}." 
         
         # Self-attention part
         Z = self._sa_block(input)
@@ -365,7 +365,7 @@ class TransformerDecoderLayer(Module):
         Args:
             input (Tensor): input feature map to the Tranformer decoder layer
             memory (Tensor): output of encoder layer at a specific stage. Must share the
-                same spatial and sequence dimentions with input.
+                same spatial and sequence dimensions with input.
             need_context_scores (bool, optional): If ``True``, return context scores of 
                 Global Separable Attention. Defaults to False.
 
@@ -377,10 +377,10 @@ class TransformerDecoderLayer(Module):
             Inputs: 
             - input: (N, C, spatial, seq) where N is the batch size, C is number of 
                 channels; spatial and sequence are the result of unfold operation to
-                form the sequence dimention for attention operation.
+                form the sequence dimension for attention operation.
             - memory: (N, C, spatial, seq) where N is the batch size, C is number of 
                 channels; spatial and sequence are the result of unfold operation to
-                form the sequence dimention for attention operation.
+                form the sequence dimension for attention operation.
                           
             Outputs:
             - attn_output: (N, C, spatial, seq)
@@ -390,10 +390,10 @@ class TransformerDecoderLayer(Module):
         # validate the shape of input and memory
         assert (
             input.dim() == 4
-        ), f"Transformer decoder block expected input have 4 dimentions, got {input.dim()}."
+        ), f"Transformer decoder block expected input have 4 dimensions, got {input.dim()}."
         assert (
             memory.dim() == 4
-        ), f"Transformer decoder block expected memory have 4 dimentions, got {memory.dim()}." 
+        ), f"Transformer decoder block expected memory have 4 dimensions, got {memory.dim()}." 
         
         # Self-attention part
         Z = self._sa_block(input) # (N, C, spatial, seq)
