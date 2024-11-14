@@ -169,6 +169,15 @@ class BDD100KDataset(torch.utils.data.Dataset):
        
         return (image_name, torch.from_numpy(image), (seg_da,seg_ll))
 
+class BDD10KDataset(torch.utils.data.Dataset):
+    def __init__():
+        pass
+    
+    def __len__():
+        pass
+
+    def __getitem__(self, index):
+        return super().__getitem__(index)
 
 TRAIN_DS = BDD100KDataset()
 VAL_DS = BDD100KDataset(valid=True)
