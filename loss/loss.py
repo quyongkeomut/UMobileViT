@@ -13,7 +13,7 @@ BINARY_MODE: str = "binary"
 MULTICLASS_MODE: str = "multiclass"
 MULTILABEL_MODE: str = "multilabel"
 
-class TotalLoss(nn.Module):
+class BDD100KLoss(nn.Module):
     '''
     This file defines a cross entropy loss for 2D images
     '''
@@ -32,8 +32,6 @@ class TotalLoss(nn.Module):
         self.seg_focal = FocalLossSeg(mode="multiclass", alpha=0.25)
         # self.seg_criterion3 = FocalLossSeg(mode="multiclass", alpha=1)
 
-
-
     def forward(self, outputs, targets):
         
         # print(outputs)
@@ -45,7 +43,7 @@ class TotalLoss(nn.Module):
         # out_da=out_da.cuda()
 
         _, seg_da= torch.max(seg_da, 1)
-        seg_da=seg_da.cuda()
+        seg_da=seg_da.to(out_da.get_device())
 
         # _, out_ll= torch.max(out_ll, 1)
         # out_ll=out_ll.cuda()
@@ -62,6 +60,49 @@ class TotalLoss(nn.Module):
         # print(loss1.item(),skyl1.item(),loss2.item(),skyl2.item())
         return loss
 
+class SegLoss(nn.Module):
+    '''
+    This file defines a cross entropy loss for 2D images
+    '''
+    def __init__(self):
+        '''
+        :param weight: 1D weight vector to deal with the class-imbalance
+        '''
+        super().__init__()
+
+        self.update_iter_interval = 500
+        self.ce_loss_history = []
+        self.tvk_loss_history = []
+
+        self.seg_tver = TverskyLoss(mode="multiclass", alpha=0.7, beta=0.3, gamma=4.0/3, from_logits=True)
+        self.seg_focal = FocalLossSeg(mode="multiclass", alpha=0.25)
+        # self.seg_criterion3 = FocalLossSeg(mode="multiclass", alpha=1)
+
+    def forward(self, outputs, targets):
+        
+        # print(outputs)
+    
+
+        # _, out_da= torch.max(out_da, 1)
+        # out_da=out_da.cuda()
+
+        _, targets= torch.max(targets, 1)
+        targets = targets.to(outputs.get_device())
+
+        # _, out_ll= torch.max(out_ll, 1)
+        # out_ll=out_ll.cuda()
+
+        # _,seg_ll= torch.max(seg_ll, 1)
+        # seg_ll=seg_ll.cuda()
+
+
+        tversky_loss = self.seg_tver(outputs, targets)
+        focal_loss = self.seg_focal(outputs, targets)
+
+        # print(tversky_loss, focal_loss)
+        loss = focal_loss + tversky_loss
+        # print(loss1.item(),skyl1.item(),loss2.item(),skyl2.item())
+        return loss
 
 def calc_iou(a, b):
     # a(anchor) [boxes, (y1, x1, y2, x2)]
