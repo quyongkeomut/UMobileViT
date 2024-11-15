@@ -60,7 +60,7 @@ class UMobileViT(Module):
         super().__init__()    
         self.alpha = alpha
         d_model = int(alpha*d_model)
-            
+        
         kwargs = {
             "d_model": d_model,
             "expansion_factor": expansion_factor,
@@ -89,7 +89,7 @@ class UMobileViT(Module):
 
 
 def umobilevit(
-    task: Optional[str] = "lane-drivable",
+    task: Optional[str] = "bdd100k",
     weights_path: Optional[str] = None,
     in_channels: int = 3,
     out_channels: int | Tuple[int, int] = (2, 2),
@@ -130,7 +130,22 @@ def umobilevit(
         model.load_state_dict(check_point["model_state_dict"])
     
     # if task is not lane and drivable segmentation, change the head of model
-    if task != "lane-drivable":
-        model.seg_head = SegHead(**kwargs)
+    if task != "bdd100k":
+            kwargs = {
+            # "in_channels": in_channels,
+            "out_channels": out_channels,
+            "d_model": int(d_model*alpha),
+            "expansion_factor": expansion_factor,
+            # "alpha": alpha,
+            "patch_size": patch_size,
+            "dropout_p": dropout_p,
+            "norm_num_groups": norm_num_groups,
+            "bias": bias, 
+            "num_transformer_block": num_transformer_block,
+            "initializer": initializer,
+            "device": device,
+            "dtype": dtype
+        }
+            model.seg_head = SegHead(**kwargs)
     
     return model
