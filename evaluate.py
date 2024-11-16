@@ -1,1 +1,1 @@
-from metrics.metrics 
+from metrics.metrics import SegmentationMetric
