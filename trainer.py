@@ -647,7 +647,7 @@ class Trainer:
         print()
         
         # save the best model on IoU metric
-        current_IoU = (mIoU + IoU) / 2
+        current_IoU = mIoU 
         if current_IoU >= self.best_IoU:
             files_to_delete = glob.glob(os.path.join(self.out_path, 'best_*'))
             for file_path in files_to_delete:
