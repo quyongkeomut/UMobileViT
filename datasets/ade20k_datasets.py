@@ -1,3 +1,8 @@
+import cv2
+import os
+import numpy as np
+import torch
+
 CLASSES = (
         'wall', 'building', 'sky', 'floor', 'tree', 'ceiling', 'road', 'bed ',
         'windowpane', 'grass', 'cabinet', 'sidewalk', 'person', 'earth',
@@ -24,7 +29,8 @@ CLASSES = (
         'plate', 'monitor', 'bulletin board', 'shower', 'radiator', 'glass',
         'clock', 'flag')
 
-PALETTE = [[120, 120, 120], [180, 120, 120], [6, 230, 230], [80, 50, 50],
+PALETTE = [[0, 0, 0],
+            [120, 120, 120], [180, 120, 120], [6, 230, 230], [80, 50, 50],
            [4, 200, 3], [120, 120, 80], [140, 140, 140], [204, 5, 255],
            [230, 230, 230], [4, 250, 7], [224, 5, 255], [235, 255, 7],
            [150, 5, 61], [120, 120, 70], [8, 255, 51], [255, 6, 82],
@@ -62,3 +68,140 @@ PALETTE = [[120, 120, 120], [180, 120, 120], [6, 230, 230], [80, 50, 50],
            [71, 0, 255], [122, 0, 255], [0, 255, 184], [0, 92, 255],
            [184, 255, 0], [0, 133, 255], [255, 214, 0], [25, 194, 194],
            [102, 255, 0], [92, 0, 255]]
+
+def add_padding(image):
+    h, w = image.shape[:2]
+    
+    if h > w:
+        # Calculate the padding for width
+        pad_width = (h - w) // 2
+        padded_image = np.pad(image, ((0, 0), (pad_width, pad_width), (0, 0)), mode='constant', constant_values=0)
+    else:
+        # Calculate the padding for height
+        pad_height = (w - h) // 2
+        padded_image = np.pad(image, ((pad_height, pad_height), (0, 0), (0, 0)), mode='constant', constant_values=0)
+    
+    return padded_image
+
+class ADE20KDatasets(torch.utils.data.Dataset):
+    """ADE20K 2016 Challange Dataset
+    rawl from http://sceneparsing.csail.mit.edu/
+
+    Args:
+        torch (_type_): _description_
+    """
+    def __init__(self,
+                root_dir:str = "data\ADEChallengeData2016",
+                valid:bool = False,
+                size = (512, 512),
+                transform =  None
+                ) -> None:
+        super().__init__()
+        self.color_map = PALETTE
+        self.size = size
+        self.transform = transform
+        if not valid:
+            self.image_dir = os.path.join(root_dir,"images", "training" )
+            self.label_dir = os.path.join(root_dir, "annotations", "training")
+        else:
+            self.image_dir = os.path.join(root_dir,"images", "validation")
+            self.label_dir = os.path.join(root_dir, "annotations", "validation")
+
+        self.list_images = os.listdir(self.image_dir)
+
+    def __len__(self):
+        return len(self.list_images)
+    
+    def __getitem__(self, index):
+        
+        image_name = self.list_images[index]
+        label_name = image_name.replace(".jpg", ".png")
+        
+        image_path = os.path.join(self.image_dir, image_name)
+        label_path = os.path.join(self.label_dir, label_name)
+
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = add_padding(image)
+
+        label = cv2.imread(label_path)
+        label = add_padding(label)
+        label = cv2.cvtColor(label, cv2.COLOR_BGR2GRAY)
+
+        image = cv2.resize(image, self.size, interpolation=cv2.INTER_NEAREST)
+        label = cv2.resize(label, self.size, interpolation=cv2.INTER_NEAREST)
+        label[label==255] = 0
+
+        
+        image = image/255
+        image = image.transpose(2, 0, 1)
+        image = np.ascontiguousarray(image, dtype=np.float32)
+
+        image = torch.from_numpy(image)
+        
+        label = torch.from_numpy(label.copy())
+        # label = label.
+
+        if self.transform:
+            (image, label) = self.transform(image, label)
+        
+        label = label.clone().detach().long()
+
+        return (image, label)
+        # print(image_name)
+        # print(label.min(), label.max())
+        # print("////")
+        # cv2.imshow("image", image)
+        # cv2.imshow("label", label)
+        # cv2.imshow("mask", mask)
+        # cv2.waitKey(0)
+
+if __name__ == "__main__":
+    from torch.utils.data import DataLoader
+    dataset = ADE20KDatasets()
+    print(dataset.__len__())
+    # for i in range(100):
+    #     dataset.__getitem__(i)
+    # loader = DataLoader(dataset, 2)
+
+    # for data in loader:
+    #     print(data[0].shape)
+    #     print(data[1].shape)
+    #     print(data[1].min(), data[1].max())
+    #     pass
+
+    
+    ##### Move Data ####
+    # import os
+    # import shutil
+    # # print(len(PALETTE) + 1)
+    # root_dir = "data\ADE20K_2021_17_01\images\ADE"
+
+    # data_dir = "data/ADE20K"
+
+    # for task in os.listdir(root_dir):
+    #     task_dir = os.path.join(root_dir, task)
+    #     data_move_dir = os.path.join(data_dir, task)
+    #     os.makedirs(data_move_dir, exist_ok=True)
+
+    #     image_task_dir = os.path.join(data_move_dir, "images")
+    #     os.makedirs(image_task_dir, exist_ok=True)
+    #     mask_task_dir = os.path.join(data_move_dir, "masks")
+    #     os.makedirs(mask_task_dir, exist_ok=True)
+
+    #     for panoptic in os.listdir(task_dir):
+    #         panoptic_dir = os.path.join(task_dir, panoptic)
+    #         for __inside in os.listdir(panoptic_dir):
+    #             __inside_dir = os.path.join(panoptic_dir,__inside)
+    #             for image in os.listdir(__inside_dir):
+    #                 print(image)
+    #                 if image.endswith(".jpg"):
+    #                     src_image = os.path.join(__inside_dir, image)
+    #                     dst_image = os.path.join(image_task_dir, image)
+    #                     shutil.copy(src_image, dst_image)
+    #                 elif image.endswith("seg.png"):
+    #                     src_image = os.path.join(__inside_dir, image)
+    #                     dst_image = os.path.join(mask_task_dir, image)
+    #                     shutil.copy(src_image, dst_image)
+    
+    # print("Done")
