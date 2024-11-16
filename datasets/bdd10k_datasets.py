@@ -97,9 +97,11 @@ class BDD10KDataset(torch.utils.data.Dataset):
     def __init__(self,
             data_dir: str = "./data/bdd10k",
             valid: bool = False,
+            size = (640, 320),
             transform  = None, 
     ):
         self.data_dir = data_dir
+        self.size = size
         self.valid = valid
         if not valid:
             self.images_dir = os.path.join(data_dir, "images", "10k", "train")
@@ -116,17 +118,17 @@ class BDD10KDataset(torch.utils.data.Dataset):
         return len(self.images_path)
 
     def __getitem__(self, index):
-        W_=640
-        H_=320
+        # W_ = 640
+        # H_ = 320
         image_path = os.path.join(self.images_dir, self.images_path[index])
         label_path = os.path.join(self.labels_dir, self.labels_path[index])
 
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (W_, H_))
+        image = cv2.resize(image, self.size, interpolation=cv2.INTER_NEAREST)
 
         label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-        label = cv2.resize(label, (W_, H_))
+        label = cv2.resize(label, self.size, interpolation=cv2.INTER_NEAREST)
         label += 1
         label[label==256] = 0
 
@@ -149,16 +151,29 @@ class BDD10KDataset(torch.utils.data.Dataset):
 
         image = image/255
         image = image.transpose(2, 0, 1)
+        image = np.ascontiguousarray(image, dtype=np.float32)
 
         image = torch.from_numpy(image)
+        
         label = torch.from_numpy(label.copy())
-        label = label.unsqueeze(0)
+        # label = label.
+
         if self.transform:
             (image, label) = self.transform(image, label)
         
+        label = label.clone().detach().long()
+
         return (image, label)
         
 if __name__ == "__main__":
+    from torch.utils.data import DataLoader
     dataset = BDD10KDataset()
+
     for i in range(100):
         dataset.__getitem__(i)
+    loader = DataLoader(dataset, 2)
+
+    for data in loader:
+        print(data[1].shape)
+        print(data[1].min(), data[1].max())
+    
