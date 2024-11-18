@@ -91,7 +91,7 @@ class ADE20KDatasets(torch.utils.data.Dataset):
         torch (_type_): _description_
     """
     def __init__(self,
-                root_dir:str = "data\ADEChallengeData2016",
+                root_dir:str = "data/ADEChallengeData2016",
                 valid:bool = False,
                 size = (512, 512),
                 transform =  None
