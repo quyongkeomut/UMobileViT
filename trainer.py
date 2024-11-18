@@ -132,7 +132,7 @@ class BDD100KTrainer:
             else:
                 self.lr_scheduler_increase.step()
             
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
         # save EMA model
         save_path = os.path.join(self.out_path, f"ema_model.pth")
@@ -229,8 +229,8 @@ class BDD100KTrainer:
                 }, save_path)
                 
                 # clear cache
-                torch.cuda.empty_cache()
-                gc.collect()
+                # torch.cuda.empty_cache()
+                # gc.collect()
                 # break
 
         # calculate averaged loss
@@ -320,8 +320,8 @@ class BDD100KTrainer:
                 pbar.update(1)  # Increment the progress bar
                 
                 # clear cache
-                torch.cuda.empty_cache()
-                gc.collect()
+                # torch.cuda.empty_cache()
+                # gc.collect()
                 # break
 
         # calculate averaged loss
@@ -472,7 +472,7 @@ class Trainer:
             else:
                 self.lr_scheduler_increase.step()
             # break
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
         # save EMA model
         save_path = os.path.join(self.out_path, f"ema_model.pth")
@@ -557,8 +557,8 @@ class Trainer:
                 }, save_path)
                 
                 # clear cache
-                torch.cuda.empty_cache()
-                gc.collect()
+                # torch.cuda.empty_cache()
+                # gc.collect()
                 # break
 
         # calculate averaged loss
@@ -637,8 +637,8 @@ class Trainer:
                 pbar.update(1)  # Increase the progress bar
                 
                 # clear cache
-                torch.cuda.empty_cache()
-                gc.collect()
+                # torch.cuda.empty_cache()
+                # gc.collect()
                 # break
 
         # calculate averaged loss
