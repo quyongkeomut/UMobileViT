@@ -89,7 +89,8 @@ class UMobileViT(Module):
 
 
 def umobilevit(
-    task: Optional[str] = "bdd100k",
+    head: Optional[str] = "dual",
+    pretrained_head: Optional[str] = "dual", 
     weights_path: Optional[str] = None,
     in_channels: int = 3,
     out_channels: int | Tuple[int, int] = (2, 2),
@@ -126,12 +127,29 @@ def umobilevit(
     
     # load pretrained weights (if specified)
     if weights_path:
+        if pretrained_head != "dual":
+            kwargs = {
+                # "in_channels": in_channels,
+                "out_channels": out_channels,
+                "d_model": int(d_model*alpha),
+                "expansion_factor": expansion_factor,
+                # "alpha": alpha,
+                "patch_size": patch_size,
+                "dropout_p": dropout_p,
+                "norm_num_groups": norm_num_groups,
+                "bias": bias, 
+                "num_transformer_block": num_transformer_block,
+                "initializer": initializer,
+                "device": device,
+                "dtype": dtype
+            }
+            model.seg_head = SegHead(**kwargs)
         check_point = torch.load(weights_path, weights_only=False)
         model.load_state_dict(check_point["model_state_dict"])
     
     # if task is not lane and drivable segmentation, change the head of model
-    if task != "bdd100k":
-            kwargs = {
+    if head != "dual":
+        kwargs = {
             # "in_channels": in_channels,
             "out_channels": out_channels,
             "d_model": int(d_model*alpha),
@@ -146,6 +164,6 @@ def umobilevit(
             "device": device,
             "dtype": dtype
         }
-            model.seg_head = SegHead(**kwargs)
+        model.seg_head = SegHead(**kwargs)
     
     return model

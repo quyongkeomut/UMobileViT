@@ -49,7 +49,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Training args')
 
-    parser.add_argument('--task', type=str, default="bdd100k", required=False, help='Task to train model choose in [bdd100k, bdd10k, ade20k, pascal]')
+    parser.add_argument('--task', type=str, default="bdd100k", required=False, help='Task to train model, valid values are one of [bdd100k, bdd10k, ade20k, pascal]')
+    parser.add_argument('--pretrained_head', type=str, default="dual", required=False, help='Pretrained head config to init weight from pretrained model, valid values are [single, dual]')
     parser.add_argument('--scale', type=float, default=0.25, required=False, help='Model scale')
     parser.add_argument('--epochs', type=int, default=5, help='Num epochs')
     parser.add_argument('--batch', type=int, default=16, help='batch size')
@@ -62,6 +63,7 @@ if __name__ == "__main__":
     
     # setup model hyperparameters and training parameters
     task = args.task
+    pretrained_head = args.pretrained_head
     num_epochs = args.epochs
     batch_size = args.batch
     seed = args.seed
@@ -81,6 +83,7 @@ if __name__ == "__main__":
         VAL_DS = BDD100KDataset(valid=True)
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
+        head = "dual"
 
     elif task == "bdd10k":
         from datasets.bdd10k_datasets import BDD10KDataset
@@ -94,6 +97,7 @@ if __name__ == "__main__":
         VAL_DS = BDD10KDataset(valid=True)
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
+        head = "single"
 
     elif task == "ade20k":
         from datasets.ade20k_datasets import ADE20KDatasets
@@ -107,9 +111,9 @@ if __name__ == "__main__":
         VAL_DS = ADE20KDatasets(valid=True)
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
+        head = "single"
 
     elif task == "pascal":
-
         from datasets.pascal_datasets import VOC2012Dataset
         from experiments_setup.pascal.backbone_config import BACKBONE_CONFIGS
         from experiments_setup.pascal.experiment_config import (
@@ -121,6 +125,7 @@ if __name__ == "__main__":
         VAL_DS = VOC2012Dataset(valid=True)
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
+        head = "single"
     
     out_dir = os.path.join("./weights", task)
 
@@ -138,8 +143,9 @@ if __name__ == "__main__":
     }
 
     model = umobilevit(
+        head=head,
+        pretrained_head=pretrained_head,
         weights_path=check_point,
-        task=task,
         **model_kwargs
     )
 
