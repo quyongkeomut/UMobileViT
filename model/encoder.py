@@ -157,13 +157,12 @@ class UMobileViTEncoder(Module):
             "bias": bias,
         }
         
-        d_stem = max(16, d_model//8)
         self.stem_block = ModuleList([
             # /2
             Sequential(
                 Conv2d(
                     in_channels=in_channels,
-                    out_channels=d_stem,
+                    out_channels=max(16, d_model//8),
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
@@ -173,15 +172,15 @@ class UMobileViTEncoder(Module):
             # /4
             Sequential(
                 Conv2d(
-                    in_channels=d_stem,
-                    out_channels=d_stem,
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
                 ReLU(),
                 GroupNorm(
                     num_groups=norm_num_groups,
-                    num_channels=d_stem,
+                    num_channels=max(16, d_model//8),
                     **factory_kwargs
                 )
             ),
@@ -189,7 +188,7 @@ class UMobileViTEncoder(Module):
             # /8
             Sequential(
                 Conv2d(
-                    in_channels=d_stem,
+                    in_channels=max(16, d_model//8),
                     out_channels=d_model,
                     **stem_conv_kwargs,
                     **factory_kwargs
