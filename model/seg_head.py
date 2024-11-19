@@ -54,7 +54,6 @@ class UpsampleHead(Module):
         
         factory_kwargs = {"device": device, "dtype": dtype}
         decoder_layer_kwargs = {
-            "in_channels": d_model,
             "dropout_p": dropout_p,
             "norm_num_groups": norm_num_groups,
             "bias": bias,
@@ -65,24 +64,34 @@ class UpsampleHead(Module):
             "mode": "nearest"
         }
         upsampling_conv_kwargs = {
-            "in_channels": d_model,
-            "out_channels": d_model,
             "kernel_size": 3,
             "stride": 1,
             "padding": (1, 1),
-            "groups": d_model,
             "norm_num_groups": norm_num_groups,
             "bias": bias,
         }
         
         upsample_head_x2 = ModuleList([
-            _get_upsample_block(
-                self.initializer,
-                **upsampling_kwargs, 
-                **upsampling_conv_kwargs,
-                **factory_kwargs
+           Sequential(
+                Conv2d(
+                    in_channels=d_model,
+                    out_channels=max(16, d_model//8),
+                    kernel_size=1,
+                    bias=bias,
+                    **factory_kwargs    
+                ),
+                _get_upsample_block(
+                    self.initializer,
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
+                    groups=max(16, d_model//8),
+                    **upsampling_kwargs, 
+                    **upsampling_conv_kwargs,
+                    **factory_kwargs
+                ),
             ),
             UMobileViTDecoderConcatLayer(
+                in_channels=max(16, d_model//8),
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,
@@ -90,25 +99,50 @@ class UpsampleHead(Module):
         ])
         
         upsample_head_x4 = ModuleList([
-            _get_upsample_block(
-                self.initializer,
-                **upsampling_kwargs, 
-                **upsampling_conv_kwargs,
-                **factory_kwargs
+            Sequential(
+                # Conv2d(
+                #     in_channels=max(16, d_model//8),
+                #     out_channels=max(16, d_model//8),
+                #     kernel_size=1,
+                #     bias=bias,
+                #     **factory_kwargs    
+                # ),
+                _get_upsample_block(
+                    self.initializer,
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
+                    groups=max(16, d_model//8),
+                    **upsampling_kwargs, 
+                    **upsampling_conv_kwargs,
+                    **factory_kwargs
+                ),
             ),
             UMobileViTDecoderConcatLayer(
+                in_channels=max(16, d_model//8),
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,)
         ])
         
         upsample_head_x8 = ModuleList([
-            _get_upsample_block(
-                self.initializer,
-                **upsampling_kwargs, 
-                **upsampling_conv_kwargs,
-                **factory_kwargs
-            ),
+            Sequential(
+                # Conv2d(
+                #     in_channels=max(16, d_model//8),
+                #     out_channels=max(16, d_model//8),
+                #     kernel_size=1,
+                #     bias=bias,
+                #     **factory_kwargs    
+                # ),
+                _get_upsample_block(
+                    self.initializer,
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
+                    groups=max(16, d_model//8),
+                    **upsampling_kwargs, 
+                    **upsampling_conv_kwargs,
+                    **factory_kwargs
+                ),
+            )
         ])
         
         self.layers = ModuleList([
@@ -170,20 +204,12 @@ class SegHead(Module):
         super().__init__()
         
         factory_kwargs = {"device": device, "dtype": dtype}
-        d_new = max(16, d_model//8)
         initializer = _get_initializer(initializer)
         self.initializer = initializer
         
         self.seg_head = ModuleList([
-            Conv2d(
-                in_channels=d_model,
-                out_channels=d_new,
-                kernel_size=1,
-                bias=bias,
-                **factory_kwargs    
-            ),
             UpsampleHead(
-                d_model=d_new,
+                d_model=d_model,
                 dropout_p=dropout_p,
                 norm_num_groups=norm_num_groups,
                 bias=bias,
@@ -193,18 +219,18 @@ class SegHead(Module):
             ),
             Sequential(
                 Conv2d(
-                    in_channels=d_new,
-                    out_channels=d_new,
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
                     kernel_size=3,
                     stride=1,
                     padding=(1, 1),
-                    groups=d_new,
+                    groups=max(16, d_model//8),
                     bias=bias,
                     **factory_kwargs,
                 ),
                 ReLU(),
                 Conv2d(
-                    in_channels=d_new,
+                    in_channels=max(16, d_model//8),
                     out_channels=out_channels,
                     kernel_size=1,
                     bias=bias,
@@ -217,10 +243,6 @@ class SegHead(Module):
     
     
     def _reset_parameters(self,) -> None:
-        self.initializer(self.seg_head[0].weight)
-        if self.seg_head[0].bias is not None:
-            zeros_(self.seg_head[0].bias)
-        
         for layer in self.seg_head[-1]:
             if isinstance(layer, Conv2d):
                 self.initializer(layer.weight)
@@ -243,8 +265,7 @@ class SegHead(Module):
         Returns:
             Tuple[Tensor]: Segmentation mask
         """
-        seg_head_feat = self.seg_head[0](input)
-        seg_head_feat = self.seg_head[1](seg_head_feat, outputs_stem)
+        seg_head_feat = self.seg_head[0](input, outputs_stem)
         seg_mask = self.seg_head[-1](seg_head_feat)
 
         return seg_mask
