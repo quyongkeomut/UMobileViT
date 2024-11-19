@@ -113,20 +113,9 @@ class UMobileViTDecoderConcatLayer(_UMobileViTLayer):
         to the model space.
         
         """
-        self.global_block = Sequential(
+        self.memory_proj = Sequential(
             Conv2d(
-                in_channels=2*kwargs["in_channels"],
-                out_channels=2*kwargs["in_channels"],
-                kernel_size=3,
-                padding=(1, 1),
-                groups=2*kwargs["in_channels"],
-                bias=kwargs["bias"],
-                device=kwargs["device"],
-                dtype=kwargs["dtype"]
-            ),
-            ReLU(),
-            Conv2d(
-                in_channels=2*kwargs["in_channels"],
+                in_channels=kwargs["in_channels"],
                 out_channels=kwargs["in_channels"],
                 kernel_size=1,
                 padding=(0, 0),
@@ -135,6 +124,36 @@ class UMobileViTDecoderConcatLayer(_UMobileViTLayer):
                 dtype=kwargs["dtype"]
             ),
             ReLU(),
+        )
+        
+        self.global_block = Sequential(
+            Conv2d(
+                in_channels=kwargs["in_channels"],
+                out_channels=kwargs["in_channels"],
+                kernel_size=3,
+                padding=(1, 1),
+                groups=kwargs["in_channels"],
+                bias=kwargs["bias"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]
+            ),
+            ReLU(),
+            Conv2d(
+                in_channels=kwargs["in_channels"],
+                out_channels=kwargs["in_channels"],
+                kernel_size=1,
+                padding=(0, 0),
+                bias=kwargs["bias"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]
+            ),
+            ReLU(),
+            GroupNorm(
+                num_groups=kwargs["norm_num_groups"],
+                num_channels=kwargs["in_channels"],
+                device=kwargs["device"],
+                dtype=kwargs["dtype"]
+            )
         )
         
     
@@ -179,13 +198,14 @@ class UMobileViTDecoderConcatLayer(_UMobileViTLayer):
         ), f"Encoder block expected memory have 4 dimensions, got {memory.dim()}."
         assert (
             input.size(1) == memory.size(1)
-        ), f"Encoder block expected input and memory have the same channels, got {input.size(1)} and {memory.size(1)}"
+        ), f"Decoder concatenative block expected input and memory have the same channels, got {input.size(1)} and {memory.size(1)}"
         
         # local block forward
         Z = self.local_block(input) # (N, C, H, W)
         
         # global block forward
-        Z = torch.cat([Z, memory], dim=1)
+        # Z = torch.cat([Z, self.memory_proj(memory)], dim=1)
+        Z = Z + self.memory_proj(memory)
         Z = self.global_block(Z)    
         
         # expansion block forward
