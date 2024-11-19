@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-from evaluate import SegmentationMetric
+from metrics.metrics import SegmentationMetric
 device = "cuda"
 
 if __name__ == "__main__":

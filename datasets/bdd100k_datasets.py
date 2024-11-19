@@ -81,7 +81,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
     '''
     Class to load the dataset
     '''
-    def __init__(self, transform=None,valid=False):
+    def __init__(self, transform=None, valid=False, size = (640, 320)):
         '''
         :param imList: image list (Note that these lists have been processed and pickled using the loadData.py)
         :param labelList: label list (Note that these lists have been processed and pickled using the loadData.py)
@@ -89,6 +89,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
         '''
 
         self.transform = transform
+        self.size = size
         self.Tensor = transforms.ToTensor()
         self.valid=valid
         if valid:
@@ -109,8 +110,8 @@ class BDD100KDataset(torch.utils.data.Dataset):
         :param idx: Index of the image file
         :return: returns the image and corresponding label file.
         '''
-        W_=640
-        H_=320
+        # W_=640
+        # H_=320
         image_name=self.names[idx]
         image_path = os.path.join(self.root, image_name)
         image = cv2.imread(image_path)
@@ -147,9 +148,9 @@ class BDD100KDataset(torch.utils.data.Dataset):
                 label1 = np.fliplr(label1)
                 label2 = np.fliplr(label2)
             
-        label1 = cv2.resize(label1, (W_, H_))
-        label2 = cv2.resize(label2, (W_, H_))
-        image = cv2.resize(image, (W_, H_))
+        label1 = cv2.resize(label1, self.size)
+        label2 = cv2.resize(label2, self.size)
+        image = cv2.resize(image, self.size)
 
         _,seg_b1 = cv2.threshold(label1,1,255,cv2.THRESH_BINARY_INV)
         _,seg_b2 = cv2.threshold(label2,1,255,cv2.THRESH_BINARY_INV)
@@ -165,30 +166,23 @@ class BDD100KDataset(torch.utils.data.Dataset):
         image = image[:, :, ::-1].transpose(2, 0, 1)
         image = np.ascontiguousarray(image, dtype=np.float32)
         image = image/255
-
        
         return (image_name, torch.from_numpy(image), (seg_da,seg_ll))
-
-
-TRAIN_DS = BDD100KDataset()
-VAL_DS = BDD100KDataset(valid=True)
-IS_PIN_MEMORY = True
-NUM_WORKERS = 2
 
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
     bdd100kdataset = BDD100KDataset(valid=True)
 
-    train_loader = DataLoader(bdd100kdataset, 1, shuffle=True, drop_last=True)
+    train_loader = DataLoader(bdd100kdataset, 2, shuffle=True, drop_last=True)
 
     for i, data in enumerate(train_loader):
         image_name = data[0]
         image = data[1]
         d_mask, l_mask = data[2]
 
-        print(image)
-        print(d_mask)
-        print(l_mask)
+        print(image.shape)
+        print(d_mask.shape)
+        # print(l_mask)
         break
 

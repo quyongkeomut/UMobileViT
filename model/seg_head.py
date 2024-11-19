@@ -270,7 +270,6 @@ class SegHead(Module):
 
         return seg_mask
         
-
 class DrivableAndLaneSegHead(Module):
     def __init__(
         self, 
@@ -341,6 +340,73 @@ class DrivableAndLaneSegHead(Module):
         
         return (drivable_mask, lane_mask)
 
+
+# class BDD10KSegHead(Module):
+#     def __init__(
+#         self, 
+#         d_model: int,
+#         dropout_p: float = 0.1,
+#         out_channels: int | Tuple[int, int] = (20),
+#         norm_num_groups: int = 4,
+#         bias: bool = True, 
+#         initializer: str | Callable[[Tensor], Tensor] = "he_uniform",
+#         device=None,
+#         dtype=None,
+#         **kwargs,
+#     ) -> None:
+#         r"""
+#         BDD10KSegHead is the module that generate segmentation masks for BDD100K Sementic Segmentation task.
+
+#         Args:
+#             d_model (int): Dimensions / Number of feature maps of the whole model. 
+#             expansion_factor (float, optional): Expansion factor in Inverted Residual block.
+#                 Defaults to 3.
+#             dropout_p (float, optional): Dropout probability. Defaults to 0.1.
+#             out_channels (int | Tuple[int], optional): Number of channels of output massk. 
+#                 Defaults to (20).
+#             norm_num_groups (int, optional): Control number of groups to be normalized. If
+#                 ``norm_num_groups`` = 1, this is equivalent to LayerNorm. Defaults to 4.
+#             bias (bool, optional): If ``True``, add trainable bias to building blocks. Defaults to 
+#                 True.
+#             initializer (str | Callable[[Tensor], Tensor], optional): Parameters initializer.
+#                 Defaults to "he_uniform" aka _kaiming_uniform.
+#         """
+#         super().__init__()
+        
+#         # out_channels = _pair(out_channels)
+#         kwargs = {
+#             "d_model": d_model,
+#             "dropout_p": dropout_p,
+#             "norm_num_groups": norm_num_groups,
+#             "bias": bias,
+#             "initializer": initializer,
+#             "device": device,
+#             "dtype": dtype,
+#             **kwargs
+#         }
+        
+#         self.seg_head = SegHead(out_channels=out_channels[0], **kwargs)
+                
+
+#     def forward(
+#         self, 
+#         input: Tensor, 
+#         outputs_stem: Tensor
+#     ) -> Tensor:
+#         r"""
+#         Forward method of Line and Drivable Segmentations
+
+#         Args:
+#             input (Tensor): Output of decoder
+#             outputs_stem (Tensor): Outputs of stem block 
+
+#         Returns:
+#             Tensor: Segmentation mask
+#         """
+        
+#         seg_mask = self.seg_head(input, outputs_stem)
+        
+#         return seg_mask
 
 if __name__ == "__main__":
     

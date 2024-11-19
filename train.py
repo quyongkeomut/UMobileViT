@@ -1,24 +1,14 @@
 import torch
 import tqdm
 from torch.utils.data import DataLoader
-from datasets.bdd_datasets import (
-    TRAIN_DS, 
-    VAL_DS,
-    IS_PIN_MEMORY,
-    NUM_WORKERS
-)
+
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR
 
-from loss.loss import TotalLoss
-from evaluate import SegmentationMetric
-from trainer import Trainer
-from experiments_setup.bdd.configs.bdd100k_backbone_config import BACKBONE_CONFIGS
-from experiments_setup.bdd.configs.bdd100k_experiment_config import (
-    OUT_CHANNELS, 
-    OPTIMIZER_NAME,
-    OPTIM_ARGS
-)
-from optimizer.bdd100k_optim import OPTIMIZERS
+from loss.loss import SegLoss, BDD100KLoss
+from metrics.metrics import SegmentationMetric
+from trainer import Trainer, BDD100KTrainer
+
+from optimizer.optimizer import OPTIMIZERS
 from model.umobilevit import umobilevit
 import numpy as np
 import random
@@ -36,7 +26,7 @@ if __name__ == "__main__":
     import os
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    os.environ["TORCH_LOGS"] = "+dynamo"
+    # os.environ["TORCH_LOGS"] = "+dynamo"
     # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
     os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "0"
 
@@ -54,15 +44,14 @@ if __name__ == "__main__":
     except RuntimeError:
         pass
     
-
     # arguments parser
     import argparse
 
     parser = argparse.ArgumentParser(description='Training args')
 
-    parser.add_argument('--task', type=str, default="lane-drivable", required=False, help='Task to train model')
+    parser.add_argument('--task', type=str, default="bdd100k", required=False, help='Task to train model choose in [bdd100k, bdd10k, ade20k, pascal]')
     parser.add_argument('--scale', type=float, default=0.25, required=False, help='Model scale')
-    parser.add_argument('--epochs', type=int, default=100, help='Num epochs')
+    parser.add_argument('--epochs', type=int, default=5, help='Num epochs')
     parser.add_argument('--batch', type=int, default=16, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='seed for training')
     parser.add_argument('--device', type=str, default="cuda", help='cuda or cpu')
@@ -79,28 +68,86 @@ if __name__ == "__main__":
     device = args.device
     check_point = args.ckpt
     set_seed(seed)
+    
+    if task == "bdd100k":
+        from datasets.bdd100k_datasets import BDD100KDataset
+        from experiments_setup.bdd100k.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.bdd100k.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = BDD100KDataset()
+        VAL_DS = BDD100KDataset(valid=True)
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
 
+    elif task == "bdd10k":
+        from datasets.bdd10k_datasets import BDD10KDataset
+        from experiments_setup.bdd10k.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.bdd10k.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = BDD10KDataset()
+        VAL_DS = BDD10KDataset(valid=True)
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+
+    elif task == "ade20k":
+        from datasets.ade20k_datasets import ADE20KDatasets
+        from experiments_setup.ade20k.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.ade20k.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = ADE20KDatasets()
+        VAL_DS = ADE20KDatasets(valid=True)
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+
+    elif task == "pascal":
+
+        from datasets.pascal_datasets import VOC2012Dataset
+        from experiments_setup.pascal.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.pascal.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = VOC2012Dataset()
+        VAL_DS = VOC2012Dataset(valid=True)
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+    
+    out_dir = os.path.join("./weights", task)
+
+    # print(OUT_CHANNELS)
     # these hyperparams depend on the dataset / experiment
     otim = OPTIMIZER_NAME
     optim_args = OPTIM_ARGS
 
-    # initialize the model and optimizer
+    # initialize the model and optimizer2
     model_kwargs = {
         "out_channels": OUT_CHANNELS,
         "alpha": args.scale,
         "device": device,
         **BACKBONE_CONFIGS
     }
+
     model = umobilevit(
         weights_path=check_point,
         task=task,
         **model_kwargs
     )
+
     optimizer = OPTIMIZERS[otim](
         model.parameters(), 
         **optim_args
     )
-    print(optimizer)
+    # print(optimizer)
 
     # load check point...
     if check_point:
@@ -124,7 +171,7 @@ if __name__ == "__main__":
         
         # load the index of last training epoch
         last_epoch = check_point["epoch"]
-        
+        model.load_state_dict(check_point["model_state_dict"])
         # last_epoch = 0
         # lr_scheduler_increase = None
         # lr_scheduler_cosine = None
@@ -133,9 +180,9 @@ if __name__ == "__main__":
         lr_scheduler_increase = None
         lr_scheduler_cosine = None
         
-    model.compile(fullgraph=True, backend="cudagraphs")    
+    # model.compile(fullgraph=True, backend="cudagraphs")    
 
-    criterion = TotalLoss()
+    
 
     # setup dataloaders
     train_loader = DataLoader(
@@ -146,6 +193,7 @@ if __name__ == "__main__":
         num_workers=NUM_WORKERS,
         pin_memory=IS_PIN_MEMORY
     )
+    # print(next(iter(train_loader))[0].shape)
     val_loader = DataLoader(
         VAL_DS, 
         batch_size=batch_size, 
@@ -156,19 +204,41 @@ if __name__ == "__main__":
     )
 
     # call the trainer
-    trainer = Trainer(
-        model=model,
-        criterion=criterion,
-        optimizer=optimizer,
-        metrics=SegmentationMetric,
-        num_epochs=num_epochs,
-        start_epoch=last_epoch,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        num_classes=OUT_CHANNELS,
-        lr_scheduler_increase=lr_scheduler_increase,
-        lr_scheduler_cosine=lr_scheduler_cosine,
-        device=device
-    )
+    if task == "bdd100k":
+        criterion = BDD100KLoss()
+        trainer = BDD100KTrainer(
+            model=model,
+            criterion=criterion,
+            optimizer=optimizer,
+            metrics=SegmentationMetric,
+            num_epochs=num_epochs,
+            start_epoch=last_epoch,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_classes=OUT_CHANNELS,
+            out_dir= out_dir,
+            lr_scheduler_increase=lr_scheduler_increase,
+            lr_scheduler_cosine=lr_scheduler_cosine,
+            device=device
+        )
 
-    trainer.run()
+        trainer.run()
+    else:
+        criterion = SegLoss()
+        trainer = Trainer(
+            model=model,
+            criterion=criterion,
+            optimizer=optimizer,
+            metrics=SegmentationMetric,
+            num_epochs=num_epochs,
+            start_epoch=last_epoch,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_classes=OUT_CHANNELS,
+            out_dir=out_dir,
+            lr_scheduler_increase=lr_scheduler_increase,
+            lr_scheduler_cosine=lr_scheduler_cosine,
+            device=device
+        )
+
+        trainer.run()
