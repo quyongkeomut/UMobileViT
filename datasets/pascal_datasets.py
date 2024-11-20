@@ -71,6 +71,7 @@ class VOC2012Dataset(torch.utils.data.Dataset):
         self.label_dir = os.path.join(root_dir, "BinaryMasks")
         self.size = size
         self.transform = transform
+        self.valid = valid
         if not valid:
             self.image_file_name = os.path.join(root_dir, "ImageSets", "Segmentation", "train.txt")
             with open(self.image_file_name, "r") as f:
@@ -111,7 +112,7 @@ class VOC2012Dataset(torch.utils.data.Dataset):
         # label = label.
 
         if self.transform:
-            (image, label) = self.transform(image, label)
+            (image, label) = self.transform(image, label, self.valid)
         
         label = label.clone().detach().long()
 

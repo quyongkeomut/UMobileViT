@@ -166,7 +166,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
         image = image[:, :, ::-1].transpose(2, 0, 1)
         image = np.ascontiguousarray(image, dtype=np.float32)
         image = image/255
-       
+        
         return (image_name, torch.from_numpy(image), (seg_da,seg_ll))
 
 

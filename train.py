@@ -9,6 +9,9 @@ from metrics.metrics import SegmentationMetric
 from trainer import Trainer, BDD100KTrainer
 
 from optimizer.optimizer import OPTIMIZERS
+
+from augmentation.augmentation import CustomAug
+
 from model.umobilevit import umobilevit
 import numpy as np
 import random
@@ -122,7 +125,7 @@ if __name__ == "__main__":
             OPTIM_ARGS
         )
         TRAIN_DS = VOC2012Dataset()
-        VAL_DS = VOC2012Dataset(valid=True)
+        VAL_DS = VOC2012Dataset(valid=True, transform=CustomAug())
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
         head = "single"
@@ -181,6 +184,7 @@ if __name__ == "__main__":
         # last_epoch = 0
         # lr_scheduler_increase = None
         # lr_scheduler_cosine = None
+        
     else:
         last_epoch = 0
         lr_scheduler_increase = None

@@ -100,6 +100,7 @@ class ADE20KDatasets(torch.utils.data.Dataset):
         self.color_map = PALETTE
         self.size = size
         self.transform = transform
+        self.valid = valid
         if not valid:
             self.image_dir = os.path.join(root_dir,"images", "training" )
             self.label_dir = os.path.join(root_dir, "annotations", "training")
@@ -143,7 +144,7 @@ class ADE20KDatasets(torch.utils.data.Dataset):
         # label = label.
 
         if self.transform:
-            (image, label) = self.transform(image, label)
+            (image, label) = self.transform(image, label, self.valid)
         
         label = label.clone().detach().long()
 
