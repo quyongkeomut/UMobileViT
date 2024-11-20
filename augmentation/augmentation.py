@@ -15,7 +15,7 @@ _NO_MASK_AUG = v2.Compose([
                     hue=0.05),
     v2.RandomChoice([
         v2.GaussianNoise(sigma=0.001),
-        v2.GaussianBlur(kernel_size=3),
+        v2.GaussianBlur(kernel_size=5),
         v2.RandomAdjustSharpness(sharpness_factor=2)
     ]),
     v2.RandomErasing(scale=(0.01, 0.01)),
