@@ -130,6 +130,20 @@ if __name__ == "__main__":
         NUM_WORKERS = 2
         head = "single"
     
+    elif task == "city":
+        from datasets.cityscapes_datasets import CityScapesDatasets
+        from experiments_setup.city.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.city.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = CityScapesDatasets(size=(512, 256))
+        VAL_DS = CityScapesDatasets(size=(512, 256), valid=True, transform=CustomAug())
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+        head = "single"
+    
     out_dir = os.path.join("./weights", task)
 
     # print(OUT_CHANNELS)
