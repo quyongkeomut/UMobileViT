@@ -148,12 +148,6 @@ class UMobileViTDecoderConcatLayer(_UMobileViTLayer):
                 dtype=kwargs["dtype"]
             ),
             ReLU(),
-            GroupNorm(
-                num_groups=kwargs["norm_num_groups"],
-                num_channels=kwargs["in_channels"],
-                device=kwargs["device"],
-                dtype=kwargs["dtype"]
-            )
         )
         
     
