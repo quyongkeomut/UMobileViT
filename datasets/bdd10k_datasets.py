@@ -159,7 +159,7 @@ class BDD10KDataset(torch.utils.data.Dataset):
         # label = label.
 
         if self.transform:
-            (image, label) = self.transform(image, label)
+            (image, label) = self.transform(image, label, self.valid)
         
         label = label.clone().detach().long()
 

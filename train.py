@@ -9,6 +9,9 @@ from metrics.metrics import SegmentationMetric
 from trainer import Trainer, BDD100KTrainer
 
 from optimizer.optimizer import OPTIMIZERS
+
+from augmentation.augmentation import CustomAug
+
 from model.umobilevit import umobilevit
 import numpy as np
 import random
@@ -122,7 +125,21 @@ if __name__ == "__main__":
             OPTIM_ARGS
         )
         TRAIN_DS = VOC2012Dataset()
-        VAL_DS = VOC2012Dataset(valid=True)
+        VAL_DS = VOC2012Dataset(valid=True, transform=CustomAug())
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+        head = "single"
+    
+    elif task == "city":
+        from datasets.cityscapes_datasets import CityScapesDatasets
+        from experiments_setup.city.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.city.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = CityScapesDatasets(size=(512, 256))
+        VAL_DS = CityScapesDatasets(size=(512, 256), valid=True, transform=CustomAug())
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
         head = "single"
@@ -181,6 +198,7 @@ if __name__ == "__main__":
         # last_epoch = 0
         # lr_scheduler_increase = None
         # lr_scheduler_cosine = None
+        
     else:
         last_epoch = 0
         lr_scheduler_increase = None
