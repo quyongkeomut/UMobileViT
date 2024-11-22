@@ -75,6 +75,33 @@ class UpsampleHead(Module):
            Sequential(
                 Conv2d(
                     in_channels=d_model,
+                    out_channels=max(16, d_model//4),
+                    kernel_size=1,
+                    bias=bias,
+                    **factory_kwargs    
+                ),
+                _get_upsample_block(
+                    self.initializer,
+                    in_channels=max(16, d_model//4),
+                    out_channels=max(16, d_model//4),
+                    groups=max(16, d_model//8),
+                    **upsampling_kwargs, 
+                    **upsampling_conv_kwargs,
+                    **factory_kwargs
+                ),
+            ),
+            UMobileViTDecoderConcatLayer(
+                in_channels=max(16, d_model//4),
+                **decoder_layer_kwargs, 
+                **factory_kwargs,
+                **kwargs,
+            )
+        ])
+        
+        upsample_head_x4 = ModuleList([
+            Sequential(
+                Conv2d(
+                    in_channels=max(16, d_model//4),
                     out_channels=max(16, d_model//8),
                     kernel_size=1,
                     bias=bias,
@@ -94,45 +121,18 @@ class UpsampleHead(Module):
                 in_channels=max(16, d_model//8),
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
-                **kwargs,
-            )
-        ])
-        
-        upsample_head_x4 = ModuleList([
-            Sequential(
-                # Conv2d(
-                #     in_channels=max(16, d_model//8),
-                #     out_channels=max(16, d_model//8),
-                #     kernel_size=1,
-                #     bias=bias,
-                #     **factory_kwargs    
-                # ),
-                _get_upsample_block(
-                    self.initializer,
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//8),
-                    groups=max(16, d_model//8),
-                    **upsampling_kwargs, 
-                    **upsampling_conv_kwargs,
-                    **factory_kwargs
-                ),
-            ),
-            UMobileViTDecoderConcatLayer(
-                in_channels=max(16, d_model//8),
-                **decoder_layer_kwargs, 
-                **factory_kwargs,
                 **kwargs,)
         ])
         
         upsample_head_x8 = ModuleList([
             Sequential(
-                # Conv2d(
-                #     in_channels=max(16, d_model//8),
-                #     out_channels=max(16, d_model//8),
-                #     kernel_size=1,
-                #     bias=bias,
-                #     **factory_kwargs    
-                # ),
+                Conv2d(
+                    in_channels=max(16, d_model//8),
+                    out_channels=max(16, d_model//8),
+                    kernel_size=1,
+                    bias=bias,
+                    **factory_kwargs    
+                ),
                 _get_upsample_block(
                     self.initializer,
                     in_channels=max(16, d_model//8),
