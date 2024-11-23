@@ -75,6 +75,7 @@ class CityScapesDatasets(torch.utils.data.Dataset):
         if test:
             split = "test"
 
+        self.valid = valid
         self.size = size
         self.transform = transform
         self.dataset = Cityscapes(root_dir, split=split, target_type='semantic')
@@ -110,6 +111,7 @@ class CityScapesDatasets(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
 
+    
     from torch.utils.data import DataLoader
     dataset = CityScapesDatasets()
 
@@ -118,6 +120,7 @@ if __name__ == "__main__":
     loader = DataLoader(dataset, 2)
 
     for data in loader:
+        print(data[0].shape)
         print(data[1].shape)
         print(data[1].min(), data[1].max())
     
