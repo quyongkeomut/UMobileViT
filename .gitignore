@@ -16,5 +16,5 @@ weights/
 *.pt
 *.h5
 *.lnk
-_test_code.py
+_test*
 datasets/gen*
