@@ -162,7 +162,7 @@ class UMobileViTEncoder(Module):
             Sequential(
                 Conv2d(
                     in_channels=in_channels,
-                    out_channels=max(16, d_model//8),
+                    out_channels= d_model//4,
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
@@ -172,15 +172,15 @@ class UMobileViTEncoder(Module):
             # /4
             Sequential(
                 Conv2d(
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//4),
+                    in_channels=d_model//4,
+                    out_channels=d_model//2,
                     **stem_conv_kwargs,
                     **factory_kwargs
                 ),
                 ReLU(),
                 GroupNorm(
                     num_groups=norm_num_groups,
-                    num_channels=max(16, d_model//4),
+                    num_channels=d_model//2,
                     **factory_kwargs
                 )
             ),
@@ -188,7 +188,7 @@ class UMobileViTEncoder(Module):
             # /8
             Sequential(
                 Conv2d(
-                    in_channels=max(16, d_model//4),
+                    in_channels=d_model//2,
                     out_channels=d_model,
                     **stem_conv_kwargs,
                     **factory_kwargs

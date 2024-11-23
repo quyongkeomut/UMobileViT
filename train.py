@@ -124,7 +124,7 @@ if __name__ == "__main__":
             OPTIMIZER_NAME,
             OPTIM_ARGS
         )
-        TRAIN_DS = VOC2012Dataset()
+        TRAIN_DS = VOC2012Dataset(transform=CustomAug())
         VAL_DS = VOC2012Dataset(valid=True, transform=CustomAug())
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
@@ -138,8 +138,8 @@ if __name__ == "__main__":
             OPTIMIZER_NAME,
             OPTIM_ARGS
         )
-        TRAIN_DS = CityScapesDatasets(size=(512, 256))
-        VAL_DS = CityScapesDatasets(size=(512, 256), valid=True, transform=CustomAug())
+        TRAIN_DS = CityScapesDatasets(size=(1024, 512), transform=CustomAug())
+        VAL_DS = CityScapesDatasets(size=(1024, 512), valid=True, transform=CustomAug())
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
         head = "single"

@@ -122,8 +122,6 @@ def calc_iou(a, b):
     return IoU
 
 
-
-
 def focal_loss_with_logits(
     output: torch.Tensor,
     target: torch.Tensor,

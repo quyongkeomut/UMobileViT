@@ -75,23 +75,23 @@ class UpsampleHead(Module):
            Sequential(
                 Conv2d(
                     in_channels=d_model,
-                    out_channels=max(16, d_model//4),
+                    out_channels=d_model//2,
                     kernel_size=1,
                     bias=bias,
                     **factory_kwargs    
                 ),
                 _get_upsample_block(
                     self.initializer,
-                    in_channels=max(16, d_model//4),
-                    out_channels=max(16, d_model//4),
-                    groups=max(16, d_model//8),
+                    in_channels=d_model//2,
+                    out_channels=d_model//2,
+                    groups=d_model//2,
                     **upsampling_kwargs, 
                     **upsampling_conv_kwargs,
                     **factory_kwargs
                 ),
             ),
             UMobileViTDecoderConcatLayer(
-                in_channels=max(16, d_model//4),
+                in_channels=d_model//2,
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,
@@ -101,24 +101,24 @@ class UpsampleHead(Module):
         upsample_head_x4 = ModuleList([
             Sequential(
                 Conv2d(
-                    in_channels=max(16, d_model//4),
-                    out_channels=max(16, d_model//8),
+                    in_channels=d_model//2,
+                    out_channels=d_model//4,
                     kernel_size=1,
                     bias=bias,
                     **factory_kwargs    
                 ),
                 _get_upsample_block(
                     self.initializer,
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//8),
-                    groups=max(16, d_model//8),
+                    in_channels= d_model//4,
+                    out_channels=d_model//4,
+                    groups=d_model//4,
                     **upsampling_kwargs, 
                     **upsampling_conv_kwargs,
                     **factory_kwargs
                 ),
             ),
             UMobileViTDecoderConcatLayer(
-                in_channels=max(16, d_model//8),
+                in_channels=d_model//4,
                 **decoder_layer_kwargs, 
                 **factory_kwargs,
                 **kwargs,)
@@ -127,17 +127,17 @@ class UpsampleHead(Module):
         upsample_head_x8 = ModuleList([
             Sequential(
                 Conv2d(
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//8),
+                    in_channels=d_model//4,
+                    out_channels=d_model//8,
                     kernel_size=1,
                     bias=bias,
                     **factory_kwargs    
                 ),
                 _get_upsample_block(
                     self.initializer,
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//8),
-                    groups=max(16, d_model//8),
+                    in_channels=d_model//8,
+                    out_channels=d_model//8,
+                    groups=d_model//8,
                     **upsampling_kwargs, 
                     **upsampling_conv_kwargs,
                     **factory_kwargs
@@ -219,18 +219,18 @@ class SegHead(Module):
             ),
             Sequential(
                 Conv2d(
-                    in_channels=max(16, d_model//8),
-                    out_channels=max(16, d_model//8),
+                    in_channels=d_model//8,
+                    out_channels=d_model//8,
                     kernel_size=3,
                     stride=1,
                     padding=(1, 1),
-                    groups=max(16, d_model//8),
+                    groups=d_model//8,
                     bias=bias,
                     **factory_kwargs,
                 ),
                 ReLU(),
                 Conv2d(
-                    in_channels=max(16, d_model//8),
+                    in_channels=d_model//8,
                     out_channels=out_channels,
                     kernel_size=1,
                     bias=bias,
