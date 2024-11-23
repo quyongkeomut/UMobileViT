@@ -23,7 +23,7 @@ _NO_MASK_AUG = v2.Compose([
 ])
 
 _WITH_MASK_AUG = v2.Compose([
-    v2.RandomResizedCrop(size=512, scale=(0.9, 1.0)),
+    # v2.RandomResizedCrop(size=512, scale=(0.9, 1.0)),
     v2.RandomHorizontalFlip(p=0.5),
     v2.RandomRotation(degrees=30),
 ])
