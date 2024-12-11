@@ -161,8 +161,8 @@ if __name__ == "__main__":
 
     model = umobilevit(
         head=head,
-        pretrained_head=pretrained_head,
-        weights_path=check_point,
+        # pretrained_head=pretrained_head,
+        # weights_path=check_point,
         **model_kwargs
     )
 
@@ -178,26 +178,30 @@ if __name__ == "__main__":
         check_point = torch.load(check_point, weights_only=False)
         
         # from checkpoint, load state_dict of optimizer and lr_schedulers
-        optimizer.load_state_dict(check_point["optimizer_state_dict"])
-        lr_scheduler_increase = LinearLR(
-            optimizer,
-            start_factor=1/5,
-            total_iters=5
-        )
-        lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
-        lr_scheduler_cosine = CosineAnnealingLR(
-            optimizer, 
-            T_max=num_epochs-5,
-            eta_min=1e-4
-        )
-        lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
+        # optimizer.load_state_dict(check_point["optimizer_state_dict"])
+        # lr_scheduler_increase = LinearLR(
+        #     optimizer,
+        #     start_factor=1/5,
+        #     total_iters=5
+        # )
+        # lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
+        # lr_scheduler_cosine = CosineAnnealingLR(
+        #     optimizer, 
+        #     T_max=num_epochs-5,
+        #     eta_min=1e-4
+        # )
+        # lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
         
-        # load the index of last training epoch
-        last_epoch = check_point["epoch"]
-        model.load_state_dict(check_point["model_state_dict"])
-        # last_epoch = 0
-        # lr_scheduler_increase = None
-        # lr_scheduler_cosine = None
+        # # load the index of last training epoch
+        # last_epoch = check_point["epoch"]
+        encoder_state_dict = {k.replace("encoder.", ""): v for k, v in check_point["model_state_dict"].items() if k.startswith("encoder.")}
+        decoder_state_dict = {k.replace("decoder.", ""): v for k, v in check_point["model_state_dict"].items() if k.startswith("decoder.")}
+
+        model.encoder.load_state_dict(encoder_state_dict)
+        model.decoder.load_state_dict(decoder_state_dict)
+        last_epoch = 0
+        lr_scheduler_increase = None
+        lr_scheduler_cosine = None
         
     else:
         last_epoch = 0
