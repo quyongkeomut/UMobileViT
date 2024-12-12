@@ -9,17 +9,17 @@ _VALID_NORM = v2.Compose([
 
 _NO_MASK_AUG = v2.Compose([
     v2.RandomGrayscale(),
-    v2.ColorJitter(brightness=0.1,
-                    contrast=0.05,
-                    saturation=0.05,
-                    hue=0.05),
+    v2.ColorJitter(brightness=0.2,
+                    contrast=0.1,
+                    saturation=0.1,
+                    hue=0.1),
     v2.RandomChoice([
-        v2.GaussianNoise(sigma=0.001),
+        v2.GaussianNoise(sigma=0.01),
         v2.GaussianBlur(kernel_size=5),
         v2.RandomAdjustSharpness(sharpness_factor=2)
     ]),
-    v2.RandomErasing(scale=(0.01, 0.01)),
-    v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    v2.RandomErasing(),
+    # v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 _WITH_MASK_AUG = v2.Compose([
@@ -40,7 +40,7 @@ class CustomAug:
             image = self.no_mask_aug(image)
 
             image, mask = self.with_mask_aug(image, mask)
-        else:
-            image = self.valid_aug(image)
+        # else:
+        #     image = self.valid_aug(image)
 
         return image, mask
