@@ -1,5 +1,4 @@
 from typing import Any
-from torchvision.transforms.v2 import Resize, GaussianNoise, GaussianBlur, RandomHorizontalFlip, RandomErasing, RandomVerticalFlip, RandomEqualize
 from torchvision.transforms import v2
 import torch
 
@@ -10,10 +9,12 @@ _VALID_NORM = v2.Compose([
 _NO_MASK_AUG = v2.Compose([
     v2.RandomGrayscale(),
     v2.RandomChoice([
-        v2.ColorJitter(brightness=0.25,
-                            contrast=0.25,
-                            saturation=0.25,
-                            hue=0.25),
+        v2.ColorJitter(
+            brightness=0.25,
+            contrast=0.25,
+            saturation=0.25,
+            hue=0.25
+        ),
         v2.Identity(),
     ]),
     
