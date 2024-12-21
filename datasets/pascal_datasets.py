@@ -58,12 +58,13 @@ def add_padding(image):
     return padded_image
 
 class VOC2012Dataset(torch.utils.data.Dataset):
-    def __init__(self,
-                root_dir:str = "./data/VOC2012",
-                valid:bool = False, 
-                size = (512, 512),
-                transform = None
-                ) -> None:
+    def __init__(
+        self,
+        root_dir:str = "./data/VOC2012_COCO2017",
+        valid:bool = False, 
+        size = (512, 512),
+        transform = None
+    ) -> None:
         super().__init__()
 
         self.color_map = list(color_map(21))
