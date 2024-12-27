@@ -2,6 +2,7 @@ data/
 env/
 docs/
 weights/
+__pycache__/
 *.pyc
 *.txt
 *.png
