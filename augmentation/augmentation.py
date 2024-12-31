@@ -36,13 +36,11 @@ _WITH_MASK_AUG = v2.Compose([
 ])
 
 
-
-
 class CustomAug:
     def __init__(self) -> None:
         self.no_mask_aug = _NO_MASK_AUG
         self.with_mask_aug = _WITH_MASK_AUG 
-        self.valid_aug = _VALID_NORM
+        # self.valid_aug = _VALID_NORM
 
     def __call__(self, image, mask, valid = False ,*args: Any, **kwds: Any) -> Any:
         if not valid:
@@ -50,6 +48,6 @@ class CustomAug:
 
             image, mask = self.with_mask_aug(image, mask)
         # else:
-        #     image = self.valid_aug(image)
+        #   image = self.valid_aug(image)
 
         return image, mask
