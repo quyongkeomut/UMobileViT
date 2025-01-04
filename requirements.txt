@@ -1,4 +1,4 @@
-python=3.10.14
+# python=3.10.14
 numpy=1.26.3
 torch=2.5.1+cu124
 torchvision= 0.20.1+cu124
