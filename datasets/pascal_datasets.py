@@ -49,21 +49,25 @@ def add_padding(image):
     if h > w:
         # Calculate the padding for width
         pad_width = (h - w) // 2
-        padded_image = np.pad(image, ((0, 0), (pad_width, pad_width), (0, 0)), mode='constant', constant_values=0)
+        pad = ((0, 0), (pad_width, pad_width))
     else:
         # Calculate the padding for height
         pad_height = (w - h) // 2
-        padded_image = np.pad(image, ((pad_height, pad_height), (0, 0), (0, 0)), mode='constant', constant_values=0)
-    
+        pad = ((pad_height, pad_height), (0, 0))
+        
+    if len(image.shape) == 3:
+        pad += ((0, 0), )    
+    padded_image = np.pad(image, pad, mode='constant', constant_values=0)
     return padded_image
 
 class VOC2012Dataset(torch.utils.data.Dataset):
-    def __init__(self,
-                root_dir:str = "./data/VOC2012",
-                valid:bool = False, 
-                size = (512, 512),
-                transform = None
-                ) -> None:
+    def __init__(
+        self,
+        root_dir:str = "./data/VOC2012_COCO2017",
+        valid:bool = False, 
+        size = (512, 512),
+        transform = None
+    ) -> None:
         super().__init__()
 
         self.color_map = list(color_map(21))
@@ -98,6 +102,7 @@ class VOC2012Dataset(torch.utils.data.Dataset):
         image = add_padding(image)
 
         label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+        label = add_padding(label)
 
         image = cv2.resize(image, self.size, interpolation=cv2.INTER_NEAREST)
         label = cv2.resize(label, self.size, interpolation=cv2.INTER_NEAREST)
