@@ -138,7 +138,7 @@ class BDD100KTrainer:
         save_path = os.path.join(self.out_path, f"ema_model.pth")
         torch.save({
             "num_epoch": self.num_epochs,
-            "model_state_dict": self.ema_model.state_dict(),
+            "model_state_dict": self.ema_model.module.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
             "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
@@ -478,7 +478,7 @@ class Trainer:
         save_path = os.path.join(self.out_path, f"ema_model.pth")
         torch.save({
             "num_epoch": self.num_epochs,
-            "model_state_dict": self.ema_model.state_dict(),
+            "model_state_dict": self.ema_model.module.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "lr_increase_state_dict": self.lr_scheduler_increase.state_dict(),
             "lr_cosine_state_dict": self.lr_scheduler_cosine.state_dict(),
