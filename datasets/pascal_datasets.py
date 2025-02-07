@@ -1,7 +1,9 @@
+from typing import Type
 import numpy as np
-from skimage.io import imshow
 import matplotlib.pyplot as plt
 import torch
+from torch import Tensor
+from torchvision import tv_tensors
 import cv2
 import os
 
@@ -96,7 +98,6 @@ class VOC2012Dataset(torch.utils.data.Dataset):
         image_path = os.path.join(self.image_dir, file_name.replace("\n", ".jpg"))
         label_path = os.path.join(self.label_dir, file_name.replace("\n", ".png"))
 
-        
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = add_padding(image)
@@ -107,19 +108,18 @@ class VOC2012Dataset(torch.utils.data.Dataset):
         image = cv2.resize(image, self.size, interpolation=cv2.INTER_NEAREST)
         label = cv2.resize(label, self.size, interpolation=cv2.INTER_NEAREST)
 
-        image = image/255
+        image = image/255.0
         image = image.transpose(2, 0, 1)
         image = np.ascontiguousarray(image, dtype=np.float32)
 
-        image = torch.from_numpy(image)
-        
-        label = torch.from_numpy(label.copy())
-        # label = label.
+        image = tv_tensors.Image(torch.from_numpy(image))
+        label = tv_tensors.Image(torch.from_numpy(label)).expand(3, -1, -1) 
+        # torchvision transform only accept images with same number of channels
 
         if self.transform:
             (image, label) = self.transform(image, label, self.valid)
         
-        label = label.clone().detach().long()
+        label = label.clone().detach().long()[0, ...]
 
         return (image, label)
 
