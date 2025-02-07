@@ -316,8 +316,8 @@ class DrivableAndLaneSegHead(Module):
         }
         
         # drivable head and lane head are segmentation heads
-        self.drivable_head = SegHead(out_channels=out_channels[1], **kwargs)
-        self.lane_head = SegHead(out_channels=out_channels[0], **kwargs)
+        self.drivable_head = SegHead(out_channels=out_channels[0], **kwargs)
+        self.lane_head = SegHead(out_channels=out_channels[1], **kwargs)
                 
 
     def forward(
