@@ -160,7 +160,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
         seg1 = self.Tensor(label1)
         seg2 = self.Tensor(seg2)
         
-        seg_b1 = self.Tensor(seg_b1)
+        # seg_b1 = self.Tensor(seg_b1)
         seg_b2 = self.Tensor(seg_b2)
         # seg_da = torch.stack((seg_b1[0], seg1[0]),0)
         seg_da = seg1
