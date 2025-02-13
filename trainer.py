@@ -108,11 +108,11 @@ class BDD100KTrainer:
     
             with open(train_csv_path, mode='w+', newline='') as train_csvfile:
                 train_writer = csv.writer(train_csvfile)
-                train_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_IoU', 'd_mIoU', 'l_Acc', 'l_IoU', 'l_mIoU'])
+                train_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_mAcc', 'd_IoU', 'd_mIoU', 'l_Acc', 'l_IoU', 'l_mIoU'])
     
             with open(val_csv_path, mode='w+', newline='') as val_csvfile:
                 val_writer = csv.writer(val_csvfile)
-                val_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_IoU', 'd_mIoU',  'l_Acc', 'l_IoU', 'l_mIoU'])
+                val_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_mAcc', 'd_IoU', 'd_mIoU', 'l_Acc', 'l_IoU', 'l_mIoU'])
         
         # Fitting loop
         for epoch in range(self.start_epoch, self.num_epochs):
@@ -150,7 +150,35 @@ class BDD100KTrainer:
         
         # train_csvfile.close()
         # val_csvfile.close()
+    
+    
+    def evaluate(self):
+        r"""
+        Perform evaluate step
         
+        """
+        if self.gpu_id == 0:
+            eval_csv_path = os.path.join(self.out_path, "eval_metrics.csv")
+    
+            with open(eval_csv_path, mode='w+', newline='') as eval_csvfile:
+                eval_writer = csv.writer(eval_csvfile)
+                eval_writer.writerow(['Epoch', 'Loss', 'd_Acc', 'd_mAcc', 'd_IoU', 'd_mIoU', 'l_Acc', 'l_IoU', 'l_mIoU'])
+        
+        for epoch in range(1):
+            # Valid
+            val_metrics = self.val(epoch=epoch)                
+           
+            if self.gpu_id == 0:
+                with open(eval_csv_path, mode='a', newline='') as eval_csvfile:
+                    val_writer = csv.writer(eval_csvfile)
+                    val_writer.writerow(val_metrics)
+            
+            # torch.cuda.empty_cache()
+
+        
+        # train_csvfile.close()
+        # val_csvfile.close()
+    
 
     def _run_one_step(self, data):
         # get data
@@ -181,6 +209,7 @@ class BDD100KTrainer:
         
         # calculate metrics of each task
         d_acc = self.d_metrics.pixelAccuracy()
+        d_mAcc = self.d_metrics.meanPixelAccuracy()
         d_IoU = self.d_metrics.IntersectionOverUnion()
         d_mIoU = self.d_metrics.meanIntersectionOverUnion()
         l_acc = self.l_metrics.lineAccuracy()
@@ -191,6 +220,7 @@ class BDD100KTrainer:
             "d_mIoU" : d_mIoU,
             "d_IoU" : d_IoU,
             "d_acc": d_acc,
+            "d_mAcc": d_mAcc,
             "l_mIoU": l_mIoU,
             "l_IoU": l_IoU, 
             "l_acc" : l_acc
@@ -264,6 +294,7 @@ class BDD100KTrainer:
             }, save_path)
 
         d_acc = metrics["d_acc"]
+        d_mAcc = metrics["d_mAcc"]
         d_IoU = metrics["d_IoU"]
         d_mIoU = metrics["d_mIoU"]
         l_acc = metrics["l_acc"]
@@ -274,7 +305,7 @@ class BDD100KTrainer:
         self.d_metrics.reset()
         self.l_metrics.reset()
 
-        return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_IoU:4f}", f"{d_mIoU:4f}", f"{l_acc:4f}", f"{l_IoU:4f}", f"{l_mIoU:4f}"]
+        return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_mAcc:4f}", f"{d_IoU:4f}", f"{d_mIoU:4f}", f"{l_acc:4f}", f"{l_IoU:4f}", f"{l_mIoU:4f}"]
 
 
     @torch.no_grad()
@@ -305,6 +336,7 @@ class BDD100KTrainer:
         loss = (total_loss/len(self.val_loader))
         
         d_acc = metrics["d_acc"]
+        d_mAcc = metrics["d_mAcc"]
         d_IoU = metrics["d_IoU"]
         d_mIoU = metrics["d_mIoU"]
         l_acc = metrics["l_acc"]
@@ -339,7 +371,7 @@ class BDD100KTrainer:
         self.d_metrics.reset()
         self.l_metrics.reset()
         
-        return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_IoU:4f}", f"{d_mIoU:4f}", f"{l_acc:4f}", f"{l_IoU:4f}", f"{l_mIoU:4f}"]
+        return [epoch + 1, f"{loss:4f}", f"{d_acc:4f}", f"{d_mAcc:4f}", f"{d_IoU:4f}", f"{d_mIoU:4f}", f"{l_acc:4f}", f"{l_IoU:4f}", f"{l_mIoU:4f}"]
     
 
 class Trainer:
