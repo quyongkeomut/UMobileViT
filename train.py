@@ -73,6 +73,20 @@ def main(
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
         head = "dual"
+    
+    elif task == "bdd100k_2":
+        from datasets.bdd100k_direct_datasets import BDD100KDataset
+        from experiments_setup.bdd100k_direct.backbone_config import BACKBONE_CONFIGS
+        from experiments_setup.bdd100k_direct.experiment_config import (
+            OUT_CHANNELS, 
+            OPTIMIZER_NAME,
+            OPTIM_ARGS
+        )
+        TRAIN_DS = BDD100KDataset()
+        VAL_DS = BDD100KDataset(valid=True)
+        IS_PIN_MEMORY = True
+        NUM_WORKERS = 2
+        head = "dual"
 
     elif task == "bdd10k":
         from datasets.bdd10k_datasets import BDD10KDataset
@@ -219,7 +233,7 @@ def main(
     )
 
     # call the trainer
-    if task == "bdd100k":
+    if task == "bdd100k" or "bdd100k_2":
         criterion = BDD100KLoss()
         trainer = BDD100KTrainer(
             model=model,
