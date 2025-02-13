@@ -627,9 +627,6 @@ class Trainer:
                     "IoU" : IoU,
                     "Acc" : acc
                 }
-                
-                # update ema model 
-                self.ema_model.update_parameters(self.model)
 
                 # update progress bar
                 total_loss += _loss.item()
