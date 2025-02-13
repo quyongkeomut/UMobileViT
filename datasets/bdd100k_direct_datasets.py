@@ -156,8 +156,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
         _,seg_b2 = cv2.threshold(label2,1,255,cv2.THRESH_BINARY_INV)
         # _,seg1 = cv2.threshold(label1,1,255,cv2.THRESH_BINARY)
         _,seg2 = cv2.threshold(label2,1,255,cv2.THRESH_BINARY)
-
-        seg1 = self.Tensor(label1)
+        seg1 = torch.from_numpy(label1)
         seg2 = self.Tensor(seg2)
         
         # seg_b1 = self.Tensor(seg_b1)
@@ -172,9 +171,7 @@ class BDD100KDataset(torch.utils.data.Dataset):
         image = image/255
         
         seg_da = seg_da.to(torch.long)
-        
         seg_da = torch.nn.functional.one_hot(seg_da, 3)
-        seg_da = seg_da.squeeze(0)
         seg_da = seg_da.permute(2, 0, 1)
         
         return (image_name, torch.from_numpy(image), (seg_da, seg_ll))
@@ -184,7 +181,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     bdd100kdataset = BDD100KDataset(valid=True)
 
-    train_loader = DataLoader(bdd100kdataset, 2, shuffle=True, drop_last=True)
+    train_loader = DataLoader(bdd100kdataset, 1, shuffle=True, drop_last=True)
 
     for i, data in enumerate(train_loader):
         image_name = data[0]
