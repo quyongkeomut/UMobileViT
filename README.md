@@ -25,7 +25,7 @@ To install, follow these steps:
 
 ## **License**
 
-This repository is released under the Apache License 2.9. See the **[LICENSE](https://github.com/quyongkeomut/Diffusion-Model/blob/main/LICENSE.md)** file for details.
+This repository is released under the Apache License 2.0. See the **[LICENSE](https://github.com/quyongkeomut/Diffusion-Model/blob/main/LICENSE.md)** file for details.
 
 ## **Citation**
 
