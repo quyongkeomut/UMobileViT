@@ -1,5 +1,4 @@
 # python==3.10.14
-numpy==1.26.3
 torch==2.5.1+cu124
 torchvision==0.20.1+cu124
 torchinfo==1.8.0
@@ -9,3 +8,4 @@ seaborn==0.13.2
 matplotlib==3.10.0
 scipy==1.14.1
 scikit-image==0.25.0
+numpy==1.26.3
