@@ -87,62 +87,6 @@ def main(
         IS_PIN_MEMORY = True
         NUM_WORKERS = 2
         head = "dual"
-
-    elif task == "bdd10k":
-        from datasets.bdd10k_datasets import BDD10KDataset
-        from experiments_setup.bdd10k.backbone_config import BACKBONE_CONFIGS
-        from experiments_setup.bdd10k.experiment_config import (
-            OUT_CHANNELS, 
-            OPTIMIZER_NAME,
-            OPTIM_ARGS
-        )
-        TRAIN_DS = BDD10KDataset()
-        VAL_DS = BDD10KDataset(valid=True)
-        IS_PIN_MEMORY = True
-        NUM_WORKERS = 2
-        head = "single"
-
-    elif task == "ade20k":
-        from datasets.ade20k_datasets import ADE20KDatasets
-        from experiments_setup.ade20k.backbone_config import BACKBONE_CONFIGS
-        from experiments_setup.ade20k.experiment_config import (
-            OUT_CHANNELS, 
-            OPTIMIZER_NAME,
-            OPTIM_ARGS
-        )
-        TRAIN_DS = ADE20KDatasets()
-        VAL_DS = ADE20KDatasets(valid=True)
-        IS_PIN_MEMORY = True
-        NUM_WORKERS = 2
-        head = "single"
-
-    elif task == "pascal":
-        from datasets.pascal_datasets import VOC2012Dataset
-        from experiments_setup.pascal.backbone_config import BACKBONE_CONFIGS
-        from experiments_setup.pascal.experiment_config import (
-            OUT_CHANNELS, 
-            OPTIMIZER_NAME,
-            OPTIM_ARGS
-        )
-        TRAIN_DS = VOC2012Dataset(transform=CustomAug())
-        VAL_DS = VOC2012Dataset(valid=True, transform=CustomAug())
-        IS_PIN_MEMORY = True
-        NUM_WORKERS = 2
-        head = "single"
-    
-    elif task == "city":
-        from datasets.cityscapes_datasets import CityScapesDatasets
-        from experiments_setup.city.backbone_config import BACKBONE_CONFIGS
-        from experiments_setup.city.experiment_config import (
-            OUT_CHANNELS, 
-            OPTIMIZER_NAME,
-            OPTIM_ARGS
-        )
-        TRAIN_DS = CityScapesDatasets(size=(512, 256), transform=CustomAug())
-        VAL_DS = CityScapesDatasets(size=(512, 256), valid=True, transform=CustomAug())
-        IS_PIN_MEMORY = True
-        NUM_WORKERS = 2
-        head = "single"
     
     out_dir = os.path.join("./weights", task)
 
@@ -174,38 +118,11 @@ def main(
     if check_point:
         # load checkpoint
         check_point = torch.load(check_point, weights_only=False)
-        
-        # from checkpoint, load state_dict of optimizer and lr_schedulers
-        # optimizer.load_state_dict(check_point["optimizer_state_dict"])
-        # lr_scheduler_increase = LinearLR(
-        #     optimizer,
-        #     start_factor=1/5,
-        #     total_iters=5
-        # )
-        # lr_scheduler_increase.load_state_dict(check_point["lr_increase_state_dict"])
-        # lr_scheduler_cosine = CosineAnnealingLR(
-        #     optimizer, 
-        #     T_max=num_epochs-5,
-        #     eta_min=1e-4
-        # )
-        # lr_scheduler_cosine.load_state_dict(check_point["lr_cosine_state_dict"])
-        
-        # # load the index of last training epoch
-        # last_epoch = check_point["epoch"]
-        # encoder_state_dict = {k.replace("encoder.", ""): v for k, v in check_point["model_state_dict"].items() if k.startswith("encoder.")}
-        # decoder_state_dict = {k.replace("decoder.", ""): v for k, v in check_point["model_state_dict"].items() if k.startswith("decoder.")}
-        # model.encoder.load_state_dict(encoder_state_dict)
-        # model.decoder.load_state_dict(decoder_state_dict)
         model.load_state_dict(check_point["model_state_dict"])
         
-        last_epoch = 0
-        lr_scheduler_increase = None
-        lr_scheduler_cosine = None
-        
-    else:
-        last_epoch = 0
-        lr_scheduler_increase = None
-        lr_scheduler_cosine = None
+    last_epoch = 0
+    lr_scheduler_increase = None
+    lr_scheduler_cosine = None
         
     # compile model
     model.compile(fullgraph=True, backend="cudagraphs")    
@@ -299,7 +216,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Training args')
 
-    parser.add_argument('--task', type=str, default="bdd100k", required=False, help='Task to train model, valid values are one of [bdd100k, bdd10k, ade20k, pascal]')
+    parser.add_argument('--task', type=str, default="bdd100k", required=False, help='Task to train model, valid values are one of [bdd100k, bdd100k_2]')
     parser.add_argument('--pretrained_head', type=str, default="dual", required=False, help='Pretrained head config to init weight from pretrained model, valid values are [single, dual]')
     parser.add_argument('--scale', type=float, default=0.25, required=False, help='Model scale')
     parser.add_argument('--epochs', type=int, default=5, help='Num epochs')
