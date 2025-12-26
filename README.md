@@ -2,7 +2,7 @@
 
 [![Static Badge](https://img.shields.io/badge/Python-3.10.14-blue.svg)](https://www.python.org/) 
 [![Static Badge](https://img.shields.io/badge/PyTorch-2.5.1-orange.svg)](https://pytorch.org/get-started/locally/)
-[![Static Badge](https://img.shields.io/badge/License-Apache2.0-red.svg)](https://github.com/quyongkeomut/Diffusion-Model/blob/main/LICENSE.md)
+[![Static Badge](https://img.shields.io/badge/License-Apache2.0-red.svg)](https://github.com/quyongkeomut/UMobileViT/blob/main/LICENSE.md)
 
 
 This reposistory is the official implementation of U-MobileViT (with PyTorch). 
@@ -25,7 +25,7 @@ To install, follow these steps:
 
 ## **License**
 
-This repository is released under the Apache License 2.0. See the **[LICENSE](https://github.com/quyongkeomut/Diffusion-Model/blob/main/LICENSE.md)** file for details.
+This repository is released under the Apache License 2.0. See the **[LICENSE](https://github.com/quyongkeomut/UMobileViT/blob/main/LICENSE.md)** file for details.
 
 ## **Citation**
 
