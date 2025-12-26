@@ -19,8 +19,8 @@ This reposistory is the official implementation of U-MobileViT (with PyTorch).
 
 To install, follow these steps:
 
-1. Clone the repository: **`$ git clone https://github.com/quyongkeomut/Diffusion-Model`**
-2. Navigate to the project directory: **`$ cd Diffusion-Model`**
+1. Clone the repository: **`$ git clone https://github.com/quyongkeomut/UMobileViT`**
+2. Navigate to the project directory: **`$ cd UMobileViT`**
 3. Install dependencies: **`$ pip install -r requirements.txt`**
 
 ## **License**
