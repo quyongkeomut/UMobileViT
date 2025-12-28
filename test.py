@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fvcore import nn as fnn
-
 from torchinfo import summary
 
 from model.umobilevit import UMobileViT
