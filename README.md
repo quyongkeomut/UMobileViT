@@ -43,7 +43,7 @@ Training args
 
 options:
   -h, --help           show this help message and exit
-  ----task TASK        Task/Dataset for training model, valid values are one of ['flowers102', 'mnist', 'fashion_mnist']
+  --task TASK        Task/Dataset for training model, valid values are one of ['flowers102', 'mnist', 'fashion_mnist']
   --scale SCALE        Scale for backbone model
   --epochs EPOCHS      Number of epochs for training
   --batch BATCH        Batch size
