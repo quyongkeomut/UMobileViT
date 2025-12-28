@@ -52,7 +52,7 @@ options:
   --seed SEED          Random seed for training
 ```
 
-For simplicity, to train on other dataset, user must implement dataset reader such that it match the [Trainer](https://github.com/quyongkeomut/UMobileViT/blob/main/trainer.py) class in our implementation, along with the configurations in [datasets](https://github.com/quyongkeomut/UMobileViT/blob/main/datasets) and [experiments_setup](https://github.com/quyongkeomut/UMobileViT/blob/main/experiments_setup) folders. User can choose to implement by their own, based on our abstract class [BaseTrainer](https://github.com/quyongkeomut/UMobileViT/blob/main/trainer.py). Please refer to our docstring for instruction.
+For simplicity, to train on other dataset, user must implement dataset reader such that it match the [Trainer](https://github.com/quyongkeomut/UMobileViT/blob/main/trainer.py) class in our implementation, along with the configurations in [datasets](https://github.com/quyongkeomut/UMobileViT/blob/main/datasets) and [experiments_setup](https://github.com/quyongkeomut/UMobileViT/blob/main/experiments_setup) folders. User can choose to implement by their own, based on our abstract class [BaseTrainer](https://github.com/quyongkeomut/UMobileViT/blob/main/trainer.py). Please refer to our docstrings according to files for instruction.
 
 
 ## **License**
